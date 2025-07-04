@@ -12,21 +12,112 @@ document.addEventListener('DOMContentLoaded', () => {
         Portal: { border: 'border-cyan-500', bg: 'bg-cyan-100', text: 'text-cyan-600', button: 'bg-cyan-500', ring: 'ring-cyan-500', chart: '#67e8f9' },
         All: { border: 'border-gray-500', bg: 'bg-gray-100', text: 'text-gray-800', button: 'bg-gray-500', ring: 'ring-gray-500' },
     };
-    const STORAGE_KEY = 'svwb-deck-tracker-decks';
+    const STORAGE_KEY_DECKS = 'svwb-deck-tracker-decks';
+    const STORAGE_KEY_SETTINGS = 'svwb-tracker-settings';
 
+    // --- TRANSLATIONS ---
+    const translations = {
+        en: {
+            // General
+            'cancel': 'Cancel', 'delete': 'Delete', 'class': 'Class', 'wins': 'Wins', 'losses': 'Losses',
+            'back': 'Back', 'backToDecks': 'Back to Decks', 'import': 'Import', 'export': 'Export', 'reset': 'Reset',
+            'appName': 'SVWB Win Tracker', 'appSubtitle': 'All data is saved in your browser.',
+            'allDecks': 'All Decks', 'addNewDeck': 'Add New Deck', 'addGame': 'Add Game', 'stats': 'Stats',
+            // Deck List
+            'noDecks': 'No decks added yet', 'noDecksHint': 'Get started by creating a new deck.',
+            'resetAll': 'Reset All', 'deckAriaDelete': 'Delete deck {name}',
+            // Modals
+            'deckName': 'Deck Name', 'deckNamePlaceholder': 'e.g. Aggro Forest', 'saveDeck': 'Save Deck',
+            'deleteDeckTitle': 'Delete Deck',
+            'deleteDeckConfirm': 'Are you sure you want to delete the deck "{name}"? All associated match data will be permanently removed. This action cannot be undone.',
+            'deleteMatchTitle': 'Delete Match',
+            'deleteMatchConfirm': 'Are you sure you want to delete this match record? This action cannot be undone.',
+            'importTitle': 'Overwrite Existing Data?',
+            'importConfirm': 'Importing this file will overwrite all your existing decks and match data. This action cannot be undone. Are you sure you want to continue?',
+            'importAndOverwrite': 'Import & Overwrite',
+            'resetTitle': 'Reset All Data',
+            'resetConfirm': 'Are you sure you want to reset all data? All decks and match history will be permanently deleted. This action cannot be undone.',
+            // Add Game
+            'addGameFor': 'Add Game for {name}', 'opponentClass': "Opponent's Class", 'turn': 'Turn', 'result': 'Result',
+            'saveGame': 'Save Game', 'gameSaved': 'Game Saved!',
+            // Stats
+            'statsFor': 'Stats for {name}', 'toggleDateFilter': 'Filter by Date', 'from': 'From', 'to': 'To',
+            'apply': 'Apply', 'clear': 'Clear', 'filterOpponent': 'Opponent: {name}', 'filterPeriod': 'Period: {start} to {end}',
+            'noGames': 'No Games Played', 'noGamesHint': 'Play some games to see your stats.',
+            'winRate': 'Win Rate', 'firstWinRate': '1st WR', 'secondWinRate': '2nd WR',
+            'winsShort': 'W', 'lossesShort': 'L', 'gamesShort': 'G', 'na': 'N/A', 'games': 'Games',
+            'opponentBreakdown': 'Opponent Breakdown', 'showAllClasses': '[Show All Classes]',
+            'opponent': 'Opponent Class', 'playRate': 'Play Rate', 'matchHistory': 'Match History',
+            'vs': '(vs {name})', 'wentTurn': 'Went {turn}', 'matchAriaDelete': 'Delete match',
+            'noMatchesFilter': 'No matches found for this filter.',
+        },
+        ja: {
+            'cancel': 'キャンセル', 'delete': '削除', 'class': 'クラス', 'wins': '勝利数', 'losses': '敗北数',
+            'back': '戻る', 'backToDecks': 'デッキ一覧へ戻る', 'import': 'インポート', 'export': 'エクスポート', 'reset': 'リセット',
+            'appName': 'SVWB 勝敗トラッカー', 'appSubtitle': 'すべてのデータはブラウザに保存されます。',
+            'allDecks': 'すべてのデッキ', 'addNewDeck': '新規デッキ追加', 'addGame': '対戦を追加', 'stats': '戦績',
+            'noDecks': 'まだデッキがありません', 'noDecksHint': '新しいデッキを作成して始めましょう。',
+            'resetAll': 'すべてリセット', 'deckAriaDelete': 'デッキ「{name}」を削除',
+            'deckName': 'デッキ名', 'deckNamePlaceholder': '例: アグロエルフ', 'saveDeck': 'デッキを保存',
+            'deleteDeckTitle': 'デッキを削除',
+            'deleteDeckConfirm': 'デッキ「{name}」を削除しますか？関連するすべての対戦データが完全に削除されます。この操作は元に戻せません。',
+            'deleteMatchTitle': '対戦を削除',
+            'deleteMatchConfirm': 'この対戦記録を削除しますか？この操作は元に戻せません。',
+            'importTitle': '既存のデータを上書きしますか？',
+            'importConfirm': 'このファイルをインポートすると、既存のすべてのデッキと対戦データが上書きされます。この操作は元に戻せません。続行しますか？',
+            'importAndOverwrite': 'インポートして上書き',
+            'resetTitle': 'すべてのデータをリセット',
+            'resetConfirm': 'すべてのデータをリセットしますか？すべてのデッキと対戦履歴が完全に削除されます。この操作は元に戻せません。',
+            'addGameFor': '{name}の対戦を追加', 'opponentClass': '対戦相手のクラス', 'turn': '先行/後攻', 'result': '勝敗',
+            'saveGame': '対戦を保存', 'gameSaved': '対戦を保存しました！',
+            'statsFor': '{name}の戦績', 'toggleDateFilter': '日付でフィルター', 'from': '開始日', 'to': '終了日',
+            'apply': '適用', 'clear': 'クリア', 'filterOpponent': '相手: {name}', 'filterPeriod': '期間: {start} ～ {end}',
+            'noGames': '対戦記録がありません', 'noGamesHint': '対戦を記録して戦績を確認しましょう。',
+            'winRate': '勝率', 'firstWinRate': '先行 勝率', 'secondWinRate': '後攻 勝率',
+            'winsShort': '勝', 'lossesShort': '敗', 'gamesShort': '戦', 'na': 'データなし', 'games': '対戦',
+            'opponentBreakdown': 'クラス別内訳', 'showAllClasses': '[すべてのクラスを表示]',
+            'opponent': '相手クラス', 'playRate': '使用率', 'matchHistory': '対戦履歴',
+            'vs': ' (vs {name})', 'wentTurn': '{turn}', 'matchAriaDelete': '対戦を削除',
+            'noMatchesFilter': 'このフィルターに一致する対戦はありません。',
+        }
+    };
+    const CLASS_NAMES = {
+        en: { Forest: 'Forest', Sword: 'Sword', Rune: 'Rune', Dragon: 'Dragon', Abyss: 'Abyss', Haven: 'Haven', Portal: 'Portal', All: 'All' },
+        ja: { Forest: 'エルフ', Sword: 'ロイヤル', Rune: 'ウィッチ', Dragon: 'ドラゴン', Abyss: 'ナイトメア', Haven: 'ビショップ', Portal: 'ネメシス', All: 'すべて' },
+    };
+    const TURN_NAMES = {
+        en: { '1st': '1st', '2nd': '2nd' },
+        ja: { '1st': '先攻', '2nd': '後攻' },
+    };
+    const RESULT_NAMES = {
+        en: { 'Win': 'Win', 'Loss': 'Loss' },
+        ja: { 'Win': '勝利', 'Loss': '敗北' },
+    };
+    
     // --- STATE MANAGEMENT ---
     let state = {
         decks: [],
+        language: 'en',
         view: { type: 'list' }, // { type: 'list' } | { type: 'add_game', deckId: '...' } | { type: 'stats', deckId: '...', filterClass: null, dateFilter: { start: null, end: null }, statsDeckSwitcherVisible: false, dateFilterVisible: false }
         newDeckClass: null,
         deckToDeleteId: null,
         matchToDelete: null, // { deckId: '...', gameId: '...' }
         fileToImport: null,
     };
+    
+    const t = (key, replacements = {}) => {
+        let text = (translations[state.language] && translations[state.language][key]) || translations.en[key] || `[${key}]`;
+        for (const placeholder in replacements) {
+            text = text.replace(`{${placeholder}}`, replacements[placeholder]);
+        }
+        return text;
+    };
+    const getTranslated = (type, key) => (type[state.language] && type[state.language][key]) || type.en[key] || key;
 
-    const loadState = () => {
+
+    const loadDecks = () => {
         try {
-            const savedDecks = localStorage.getItem(STORAGE_KEY);
+            const savedDecks = localStorage.getItem(STORAGE_KEY_DECKS);
             return savedDecks ? JSON.parse(savedDecks) : [];
         } catch (error) {
             console.error("Could not parse decks from localStorage", error);
@@ -34,14 +125,32 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    const saveState = () => {
+    const saveDecks = () => {
         try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(state.decks));
+            localStorage.setItem(STORAGE_KEY_DECKS, JSON.stringify(state.decks));
         } catch (error) {
             console.error("Could not save decks to localStorage", error);
         }
     };
     
+    const loadSettings = () => {
+        try {
+            const savedSettings = localStorage.getItem(STORAGE_KEY_SETTINGS);
+            return savedSettings ? JSON.parse(savedSettings) : {};
+        } catch (error) {
+            console.error("Could not parse settings from localStorage", error);
+            return {};
+        }
+    };
+    
+    const saveSettings = () => {
+        try {
+            localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify({ language: state.language }));
+        } catch (error) {
+            console.error("Could not save settings to localStorage", error);
+        }
+    };
+
     // --- DOM ELEMENTS ---
     const appContainer = document.getElementById('app');
     const addDeckModal = document.getElementById('add-deck-modal');
@@ -93,7 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const style = classStyles[cls];
             const button = document.createElement('button');
             button.type = 'button';
-            button.textContent = cls;
+            button.textContent = getTranslated(CLASS_NAMES, cls);
             button.setAttribute('aria-pressed', String(isSelected));
             button.className = `w-full text-center px-2 py-2 text-sm font-medium rounded-md focus:outline-none transition-all duration-150 transform hover:-translate-y-px ${
                 isSelected
@@ -227,7 +336,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 state.decks = importedData;
-                saveState();
+                saveDecks();
                 render();
                 alert("Data imported successfully!");
 
@@ -280,8 +389,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (decks.length === 0) {
             contentHTML = `
                 <div class="text-center border-2 border-dashed border-gray-300 rounded-lg p-12">
-                    <h3 class="text-sm font-medium text-gray-900">No decks added yet</h3>
-                    <p class="mt-1 text-sm text-gray-500">Get started by creating a new deck.</p>
+                    <h3 class="text-sm font-medium text-gray-900">${t('noDecks')}</h3>
+                    <p class="mt-1 text-sm text-gray-500">${t('noDecksHint')}</p>
                 </div>
             `;
         } else {
@@ -294,19 +403,19 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="flex-grow">
                             <div class="flex justify-between items-center mb-1">
                                 <h3 class="text-lg font-bold text-gray-800 truncate" title="${deck.name}">${deck.name}</h3>
-                                <span class="flex-shrink-0 ml-2 px-2 py-0.5 text-xs font-semibold rounded-full ${style.bg} ${style.text}">${deck.class}</span>
+                                <span class="flex-shrink-0 ml-2 px-2 py-0.5 text-xs font-semibold rounded-full ${style.bg} ${style.text}">${getTranslated(CLASS_NAMES, deck.class)}</span>
                             </div>
                             <div class="mt-2 flex justify-between items-baseline text-base">
-                                <p><span class="font-bold text-green-600">${wins}</span> <span class="text-sm text-gray-500">Wins</span></p>
-                                <p><span class="font-bold text-red-600">${losses}</span> <span class="text-sm text-gray-500">Losses</span></p>
+                                <p><span class="font-bold text-green-600">${wins}</span> <span class="text-sm text-gray-500">${t('wins')}</span></p>
+                                <p><span class="font-bold text-red-600">${losses}</span> <span class="text-sm text-gray-500">${t('losses')}</span></p>
                             </div>
                         </div>
                         <div class="mt-4 border-t border-gray-200 pt-3 flex items-center justify-between">
                             <div class="flex gap-2">
-                                <button data-action="add_game" data-deck-id="${deck.id}" class="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">Add Game</button>
-                                <button data-action="stats" data-deck-id="${deck.id}" class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400">Stats</button>
+                                <button data-action="add_game" data-deck-id="${deck.id}" class="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">${t('addGame')}</button>
+                                <button data-action="stats" data-deck-id="${deck.id}" class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400">${t('stats')}</button>
                             </div>
-                            <button data-action="delete" data-deck-id="${deck.id}" aria-label="Delete deck ${deck.name}" class="p-2 text-gray-400 rounded-full hover:bg-red-100 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                            <button data-action="delete" data-deck-id="${deck.id}" aria-label="${t('deckAriaDelete', {name: deck.name})}" class="p-2 text-gray-400 rounded-full hover:bg-red-100 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 pointer-events-none" viewBox="0 0 20 20" fill="currentColor">
                                     <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" />
                                 </svg>
@@ -321,27 +430,26 @@ document.addEventListener('DOMContentLoaded', () => {
         appContainer.innerHTML = `
             <main class="w-full max-w-7xl mx-auto">
                 <div class="bg-white rounded-xl shadow-lg p-6 md:p-10">
-                    <header class="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-                        <div>
-                            <h1 class="text-3xl sm:text-4xl font-bold text-gray-800 tracking-tight">SVWB Win Tracker</h1>
-                            <p class="mt-1 text-base text-gray-500">All data is saved in your browser.</p>
-                        </div>
-                        <div class="flex-shrink-0 flex items-center gap-2 flex-wrap justify-end">
-                            <button id="import-btn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400">
-                                Import
-                            </button>
-                            <button id="export-btn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400 disabled:opacity-50" ${decks.length === 0 ? 'disabled' : ''}>
-                                Export
-                            </button>
-                            <button id="reset-all-btn" class="px-4 py-2 text-sm font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-red-400 disabled:opacity-50 disabled:cursor-not-allowed" ${decks.length === 0 ? 'disabled' : ''}>
-                                Reset All
-                            </button>
-                            <button id="add-deck-btn" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition-transform transform hover:scale-105">
-                                Add New Deck
-                            </button>
-                        </div>
-                    </header>
+                    <h1 class="text-3xl sm:text-4xl font-bold text-gray-800 tracking-tight text-center">${t('appName')}</h1>
+                    <div class="mt-6 flex items-center justify-center sm:justify-end gap-2 flex-wrap">
+                        <button id="toggle-lang-btn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400">
+                            ${state.language === 'en' ? '日本語' : 'English'}
+                        </button>
+                        <button id="import-btn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400">
+                            ${t('import')}
+                        </button>
+                        <button id="export-btn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400 disabled:opacity-50" ${decks.length === 0 ? 'disabled' : ''}>
+                            ${t('export')}
+                        </button>
+                        <button id="reset-all-btn" class="px-4 py-2 text-sm font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-red-400 disabled:opacity-50 disabled:cursor-not-allowed" ${decks.length === 0 ? 'disabled' : ''}>
+                            ${t('resetAll')}
+                        </button>
+                        <button id="add-deck-btn" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition-transform transform hover:scale-105">
+                            ${t('addNewDeck')}
+                        </button>
+                    </div>
                     <div class="mt-10">${contentHTML}</div>
+                    <p class="mt-8 text-center text-base text-gray-500">${t('appSubtitle')}</p>
                 </div>
             </main>
         `;
@@ -349,6 +457,11 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('add-deck-btn').addEventListener('click', openAddDeckModal);
         document.getElementById('import-btn').addEventListener('click', handleImport);
         document.getElementById('export-btn').addEventListener('click', handleExport);
+        document.getElementById('toggle-lang-btn').addEventListener('click', () => {
+            state.language = state.language === 'en' ? 'ja' : 'en';
+            saveSettings();
+            render();
+        });
         if (decks.length > 0) {
             document.getElementById('reset-all-btn').addEventListener('click', openResetModal);
         }
@@ -384,31 +497,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="bg-white rounded-xl shadow-lg p-6 md:p-10">
                     <button id="back-to-decks" class="mb-6 inline-flex items-center text-blue-600 hover:text-blue-800 font-semibold text-sm">
                         <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
-                        Back to Decks
+                        ${t('backToDecks')}
                     </button>
-                    <h2 class="text-2xl font-bold text-gray-800">Add Game for <span class="${classStyles[deck.class].text}">${deck.name}</span></h2>
+                    <h2 class="text-2xl font-bold text-gray-800">${t('addGameFor', {name: `<span class="${classStyles[deck.class].text}">${deck.name}</span>`})}</h2>
                     <form id="add-game-form" class="mt-6 space-y-6">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Opponent's Class</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">${t('opponentClass')}</label>
                             <div id="game-class-selector-container"></div>
                         </div>
                         <div>
-                            <span class="block text-sm font-medium text-gray-700">Turn</span>
+                            <span class="block text-sm font-medium text-gray-700">${t('turn')}</span>
                             <div id="turn-selector" class="mt-2 grid grid-cols-2 gap-4">
-                                <button type="button" data-value="1st" class="w-full text-center px-4 py-3 font-semibold rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-150 transform hover:-translate-y-px bg-gray-200 text-gray-700 hover:bg-gray-300 ring-blue-500">1st</button>
-                                <button type="button" data-value="2nd" class="w-full text-center px-4 py-3 font-semibold rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-150 transform hover:-translate-y-px bg-gray-200 text-gray-700 hover:bg-gray-300 ring-blue-500">2nd</button>
+                                <button type="button" data-value="1st" class="w-full text-center px-4 py-3 font-semibold rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-150 transform hover:-translate-y-px bg-gray-200 text-gray-700 hover:bg-gray-300 ring-blue-500">${getTranslated(TURN_NAMES, '1st')}</button>
+                                <button type="button" data-value="2nd" class="w-full text-center px-4 py-3 font-semibold rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-150 transform hover:-translate-y-px bg-gray-200 text-gray-700 hover:bg-gray-300 ring-blue-500">${getTranslated(TURN_NAMES, '2nd')}</button>
                             </div>
                         </div>
                         <div>
-                            <span class="block text-sm font-medium text-gray-700">Result</span>
+                            <span class="block text-sm font-medium text-gray-700">${t('result')}</span>
                             <div id="result-selector" class="mt-2 grid grid-cols-2 gap-4">
-                                <button type="button" data-value="Win" class="w-full text-center px-4 py-3 font-semibold rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-150 transform hover:-translate-y-px bg-green-100 text-green-800 hover:bg-green-200 ring-green-500">Win</button>
-                                <button type="button" data-value="Loss" class="w-full text-center px-4 py-3 font-semibold rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-150 transform hover:-translate-y-px bg-red-100 text-red-800 hover:bg-red-200 ring-red-500">Loss</button>
+                                <button type="button" data-value="Win" class="w-full text-center px-4 py-3 font-semibold rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-150 transform hover:-translate-y-px bg-green-100 text-green-800 hover:bg-green-200 ring-green-500">${getTranslated(RESULT_NAMES, 'Win')}</button>
+                                <button type="button" data-value="Loss" class="w-full text-center px-4 py-3 font-semibold rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-150 transform hover:-translate-y-px bg-red-100 text-red-800 hover:bg-red-200 ring-red-500">${getTranslated(RESULT_NAMES, 'Loss')}</button>
                             </div>
                         </div>
                         <div class="border-t border-gray-200 pt-5">
                              <button id="save-game-button" type="submit" disabled class="w-full px-4 py-3 font-semibold rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors duration-200 bg-gray-400 text-gray-100 cursor-not-allowed ring-gray-400">
-                                Save Game
+                                ${t('saveGame')}
                             </button>
                         </div>
                     </form>
@@ -495,9 +608,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.decks = state.decks.map(d =>
                     d.id === deckId ? { ...d, games: [...d.games, newGame] } : d
                 );
-                saveState();
+                saveDecks();
                 
-                saveButton.textContent = 'Game Saved!';
+                saveButton.textContent = t('gameSaved');
                 saveButton.className = 'w-full px-4 py-3 font-semibold rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors duration-200 bg-green-600 text-white ring-green-500';
                 saveButton.disabled = true;
 
@@ -516,7 +629,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (isAllDecksView) {
             const allGames = state.decks.flatMap(d => d.games.map(g => ({...g, originalDeckId: d.id, originalDeckClass: d.class})));
-            displayDeck = { id: 'all', name: 'All Decks', class: 'All', games: allGames };
+            displayDeck = { id: 'all', name: t('allDecks'), class: 'All', games: allGames };
         } else {
             displayDeck = state.decks.find(d => d.id === deckId);
         }
@@ -543,7 +656,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return acc;
             }, {});
 
-            const formatRate = (wins, total) => total > 0 ? `${((wins / total) * 100).toFixed(1)}%` : 'N/A';
+            const formatRate = (wins, total) => total > 0 ? `${((wins / total) * 100).toFixed(1)}%` : t('na');
 
             return {
                 total, wins, losses, winRate: formatRate(wins, total),
@@ -569,7 +682,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const winRateByClass = CLASSES.reduce((acc, cls) => {
             const gamesVsClass = filteredDeckGames.filter(g => g.opponentClass === cls);
             if (gamesVsClass.length === 0) {
-                acc[cls] = 'N/A';
+                acc[cls] = t('na');
                 return acc;
             }
             const winsVsClass = gamesVsClass.filter(g => g.result === 'Win').length;
@@ -578,7 +691,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, {});
         
         const createDonutChart = () => {
-            if (filteredDeckGames.length === 0) return `<div class="w-[240px] h-[240px] flex items-center justify-center text-gray-400">No Data</div>`;
+            if (filteredDeckGames.length === 0) return `<div class="w-[240px] h-[240px] flex items-center justify-center text-gray-400">${t('na')}</div>`;
             
             const radius = 110;
             const strokeWidth = 30;
@@ -620,7 +733,7 @@ document.addEventListener('DOMContentLoaded', () => {
                      <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
                          <div class="text-center">
                              <p class="text-4xl font-bold text-gray-800">${stats.total}</p>
-                             <p class="text-sm text-gray-500">Games</p>
+                             <p class="text-sm text-gray-500">${t('games')}</p>
                          </div>
                      </div>
                  </div>
@@ -640,7 +753,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <button data-action="filter-stats" data-class="${cls}" class="grid grid-cols-3 w-full text-left p-2 rounded-md items-center transition-all duration-200 ${isFiltered ? `bg-blue-100 ring-1 ring-blue-400 shadow-sm` : 'hover:bg-gray-50'}">
                     <span class="flex items-center gap-3 col-span-1 truncate">
                         <span class="w-3 h-3 rounded-full flex-shrink-0" style="background-color: ${style.chart}"></span>
-                        <span class="text-sm font-medium text-gray-700 truncate">${cls}</span>
+                        <span class="text-sm font-medium text-gray-700 truncate">${getTranslated(CLASS_NAMES, cls)}</span>
                     </span>
                     <span class="text-sm text-gray-600 text-center col-span-1">
                         <span class="font-semibold text-gray-800">${percentage}%</span>
@@ -656,7 +769,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const recentMatchesHTML = sortedGames.map(game => {
             const opponentStyle = classStyles[game.opponentClass];
             const resultStyle = game.result === 'Win' ? 'text-green-600' : 'text-red-600';
-            const date = new Date(game.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+            const date = new Date(game.timestamp).toLocaleDateString(state.language === 'ja' ? 'ja-JP' : undefined, { month: 'short', day: 'numeric' });
             
             const gameDeckInfo = isAllDecksView ? `
                 <span class="flex-shrink-0 ml-2 px-2 py-0.5 text-xs font-semibold rounded-full ${classStyles[game.originalDeckClass].bg} ${classStyles[game.originalDeckClass].text}">${state.decks.find(d=>d.id === game.originalDeckId)?.name || 'Unknown'}</span>
@@ -665,16 +778,16 @@ document.addEventListener('DOMContentLoaded', () => {
             return `
                  <li class="flex items-center justify-between p-3" data-game-id="${game.id}" data-deck-id="${game.originalDeckId || deckId}">
                     <div class="flex items-center gap-3">
-                        <span class="w-20 text-center px-2 py-1 text-xs font-semibold rounded-full ${opponentStyle.bg} ${opponentStyle.text}">${game.opponentClass}</span>
+                        <span class="w-24 text-center px-2 py-1 text-xs font-semibold rounded-full ${opponentStyle.bg} ${opponentStyle.text}">${getTranslated(CLASS_NAMES, game.opponentClass)}</span>
                         <div>
-                            <p class="font-semibold ${resultStyle}">${game.result}</p>
-                            <p class="text-xs text-gray-500">Went ${game.turn}</p>
+                            <p class="font-semibold ${resultStyle}">${getTranslated(RESULT_NAMES, game.result)}</p>
+                            <p class="text-xs text-gray-500">${t('wentTurn', {turn: getTranslated(TURN_NAMES, game.turn)})}</p>
                         </div>
                         ${gameDeckInfo}
                     </div>
                     <div class="flex items-center gap-2">
                         <p class="text-sm text-gray-400">${date}</p>
-                        <button data-action="delete-match" aria-label="Delete match" class="p-1 text-gray-400 rounded-full hover:bg-red-100 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-red-500">
+                        <button data-action="delete-match" aria-label="${t('matchAriaDelete')}" class="p-1 text-gray-400 rounded-full hover:bg-red-100 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-red-500">
                              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                                 <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" />
                             </svg>
@@ -692,11 +805,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="flex items-center gap-2">
                             <button id="back-to-decks" class="inline-flex items-center text-blue-600 hover:text-blue-800 font-semibold text-sm">
                                 <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
-                                Back
+                                ${t('back')}
                             </button>
                              <div class="relative">
                                 <button id="deck-switcher-btn" class="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-200 transition-colors">
-                                    <h2 class="text-2xl font-bold text-gray-800">Stats for <span class="${classStyles[displayDeck.class].text}">${displayDeck.name}</span></h2>
+                                    <h2 class="text-2xl font-bold text-gray-800">${t('statsFor', {name: `<span class="${classStyles[displayDeck.class].text}">${displayDeck.name}</span>`})}</h2>
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 transition-transform ${statsDeckSwitcherVisible ? 'rotate-180' : ''}" viewBox="0 0 20 20" fill="currentColor">
                                         <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
                                     </svg>
@@ -706,13 +819,13 @@ document.addEventListener('DOMContentLoaded', () => {
                                     <ul class="max-h-60 overflow-y-auto">
                                         <li>
                                             <button data-deck-id="all" class="w-full text-left px-4 py-3 text-sm font-semibold hover:bg-blue-50 transition-colors ${isAllDecksView ? 'text-blue-600' : 'text-gray-700'}">
-                                                All Decks
+                                                ${t('allDecks')}
                                             </button>
                                         </li>
                                         ${state.decks.map(d => `
                                             <li>
                                                 <button data-deck-id="${d.id}" class="w-full text-left px-4 py-3 text-sm hover:bg-blue-50 transition-colors ${d.id === deckId ? 'text-blue-600 font-semibold' : 'text-gray-700'}">
-                                                    ${d.name} <span class="text-xs ${classStyles[d.class].text}">(${d.class})</span>
+                                                    ${d.name} <span class="text-xs ${classStyles[d.class].text}">(${getTranslated(CLASS_NAMES, d.class)})</span>
                                                 </button>
                                             </li>
                                         `).join('')}
@@ -728,19 +841,19 @@ document.addEventListener('DOMContentLoaded', () => {
                            </button>
                             <!-- Date Filter Card -->
                             <div id="date-filter-card" class="${dateFilterVisible ? '' : 'hidden'} absolute top-full right-0 mt-2 w-80 bg-white rounded-lg shadow-xl border z-20 p-4">
-                                <p class="text-sm font-semibold text-gray-700 mb-3">Filter by Date</p>
+                                <p class="text-sm font-semibold text-gray-700 mb-3">${t('toggleDateFilter')}</p>
                                 <form id="date-filter-form" class="space-y-3">
                                     <div>
-                                        <label for="start-date" class="block text-xs font-medium text-gray-600">From</label>
+                                        <label for="start-date" class="block text-xs font-medium text-gray-600">${t('from')}</label>
                                         <input type="date" id="start-date" name="start-date" value="${dateFilter.start || ''}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white text-black">
                                     </div>
                                     <div>
-                                        <label for="end-date" class="block text-xs font-medium text-gray-600">To</label>
+                                        <label for="end-date" class="block text-xs font-medium text-gray-600">${t('to')}</label>
                                         <input type="date" id="end-date" name="end-date" value="${dateFilter.end || ''}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white text-black">
                                     </div>
                                     <div class="flex items-center justify-end gap-2 pt-2">
-                                        <button type="button" id="clear-date-filter-btn" class="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400">Clear</button>
-                                        <button type="submit" class="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">Apply</button>
+                                        <button type="button" id="clear-date-filter-btn" class="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400">${t('clear')}</button>
+                                        <button type="submit" class="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">${t('apply')}</button>
                                     </div>
                                 </form>
                             </div>
@@ -750,8 +863,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="mt-2 min-h-[1.25rem]">
                         ${filterClass || (dateFilter.start || dateFilter.end) ? `
                             <div class="flex items-center flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600">
-                                ${filterClass ? `<p>Opponent: <span class="font-semibold ${classStyles[filterClass].text}">${filterClass}</span></p>` : ''}
-                                ${dateFilter.start || dateFilter.end ? `<p>Period: <span class="font-semibold text-gray-700">${dateFilter.start || '...'} to ${dateFilter.end || '...'}</span></p>` : ''}
+                                ${filterClass ? `<p>${t('filterOpponent', {name: `<span class="font-semibold ${classStyles[filterClass].text}">${getTranslated(CLASS_NAMES, filterClass)}</span>`})}</p>` : ''}
+                                ${dateFilter.start || dateFilter.end ? `<p>${t('filterPeriod', {start: `<span class="font-semibold text-gray-700">${dateFilter.start || '...'}</span>`, end: `<span class="font-semibold text-gray-700">${dateFilter.end || '...'}</span>`})}</p>` : ''}
                             </div>
                         ` : ''}
                     </div>
@@ -759,8 +872,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 ${displayDeck.games.length === 0 ? `
                     <div class="text-center bg-white rounded-lg shadow-md border-2 border-dashed border-gray-300 p-12 mt-6">
-                        <h3 class="text-sm font-medium text-gray-900">No Games Played</h3>
-                        <p class="mt-1 text-sm text-gray-500">Play some games to see your stats.</p>
+                        <h3 class="text-sm font-medium text-gray-900">${t('noGames')}</h3>
+                        <p class="mt-1 text-sm text-gray-500">${t('noGamesHint')}</p>
                     </div>
                 ` : `
                     <div class="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
@@ -769,19 +882,19 @@ document.addEventListener('DOMContentLoaded', () => {
                             <div class="flex flex-col md:flex-row items-center justify-around gap-6">
                                 <div class="flex flex-row md:flex-col justify-around md:justify-start items-baseline gap-4 md:gap-6 w-full md:w-auto text-center flex-shrink-0">
                                     <div>
-                                        <p class="text-sm text-gray-500">Win Rate</p>
+                                        <p class="text-sm text-gray-500">${t('winRate')}</p>
                                         <p class="text-2xl md:text-3xl font-bold text-gray-800">${stats.winRate}</p>
-                                        <p class="text-xs text-gray-400">${stats.wins}W / ${stats.losses}L</p>
+                                        <p class="text-xs text-gray-400">${stats.wins}${t('winsShort')} / ${stats.losses}${t('lossesShort')}</p>
                                     </div>
                                     <div>
-                                        <p class="text-sm text-gray-500">1st WR</p>
+                                        <p class="text-sm text-gray-500">${t('firstWinRate')}</p>
                                         <p class="text-xl md:text-2xl font-semibold text-gray-800">${stats.firstTurnWinRate}</p>
-                                        <p class="text-xs text-gray-400">${stats.firstTurnTotal > 0 ? `${stats.firstTurnWins}W / ${stats.firstTurnTotal}G` : 'N/A'}</p>
+                                        <p class="text-xs text-gray-400">${stats.firstTurnTotal > 0 ? `${stats.firstTurnWins}${t('winsShort')} / ${stats.firstTurnTotal}${t('gamesShort')}` : t('na')}</p>
                                     </div>
                                     <div>
-                                        <p class="text-sm text-gray-500">2nd WR</p>
+                                        <p class="text-sm text-gray-500">${t('secondWinRate')}</p>
                                         <p class="text-xl md:text-2xl font-semibold text-gray-800">${stats.secondTurnWinRate}</p>
-                                        <p class="text-xs text-gray-400">${stats.secondTurnTotal > 0 ? `${stats.secondTurnWins}W / ${stats.secondTurnTotal}G` : 'N/A'}</p>
+                                        <p class="text-xs text-gray-400">${stats.secondTurnTotal > 0 ? `${stats.secondTurnWins}${t('winsShort')} / ${stats.secondTurnTotal}${t('gamesShort')}` : t('na')}</p>
                                     </div>
                                 </div>
                                 <div class="flex-grow flex justify-center">
@@ -791,13 +904,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
                             <div class="mt-8 border-t border-gray-200 pt-6">
                                  <div class="flex justify-between items-center mb-4">
-                                     <h3 class="text-base font-semibold text-gray-700">Opponent Breakdown</h3>
-                                      ${filterClass ? `<button id="clear-class-filter-btn" class="text-xs text-blue-500 hover:underline">[Show All Classes]</button>` : ''}
+                                     <h3 class="text-base font-semibold text-gray-700">${t('opponentBreakdown')}</h3>
+                                      ${filterClass ? `<button id="clear-class-filter-btn" class="text-xs text-blue-500 hover:underline">${t('showAllClasses')}</button>` : ''}
                                 </div>
                                 <div class="grid grid-cols-3 text-xs text-gray-500 font-medium px-2 pb-1 border-b">
-                                    <span class="col-span-1">Opponent Class</span>
-                                    <span class="text-center col-span-1">Play Rate</span>
-                                    <span class="text-right col-span-1">Win Rate</span>
+                                    <span class="col-span-1">${t('opponent')}</span>
+                                    <span class="text-center col-span-1">${t('playRate')}</span>
+                                    <span class="text-right col-span-1">${t('winRate')}</span>
                                 </div>
                                 <div class="space-y-1 mt-2">
                                     ${opponentBreakdownHTML}
@@ -807,10 +920,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         <!-- CARD 2: RECENT MATCHES -->
                         <div class="bg-white rounded-lg shadow-md p-6">
-                            <h3 class="text-lg font-semibold text-gray-700 mb-4">Match History ${filterClass ? `(vs ${filterClass})`: ''}</h3>
+                            <h3 class="text-lg font-semibold text-gray-700 mb-4">${t('matchHistory')} ${filterClass ? t('vs', {name: getTranslated(CLASS_NAMES, filterClass)}): ''}</h3>
                             <div class="bg-white rounded-lg border border-gray-200">
                                 <ul id="recent-matches-list" class="max-h-[36rem] overflow-y-auto divide-y divide-gray-100">
-                                    ${recentMatchesHTML || `<li class="p-4 text-center text-gray-500">No matches found for this filter.</li>`}
+                                    ${recentMatchesHTML || `<li class="p-4 text-center text-gray-500">${t('noMatchesFilter')}</li>`}
                                 </ul>
                             </div>
                         </div>
@@ -842,7 +955,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const button = e.target.closest('button[data-deck-id]');
             if (button) {
                 const newDeckId = button.dataset.deckId;
-                state.view = { ...state.view, deckId: newDeckId, statsDeckSwitcherVisible: false };
+                state.view = { ...state.view, deckId: newDeckId, filterClass: null, statsDeckSwitcherVisible: false };
                 render();
             }
         });
@@ -910,7 +1023,42 @@ document.addEventListener('DOMContentLoaded', () => {
         }, { once: true }); // Use once to avoid listener buildup
     };
 
+    const renderModals = () => {
+        // Add Deck Modal
+        document.querySelector('#add-deck-modal h2').textContent = t('addNewDeck');
+        document.querySelector('#add-deck-modal label[for="deckName"]').textContent = t('deckName');
+        document.querySelector('#add-deck-modal #deckName').placeholder = t('deckNamePlaceholder');
+        document.querySelector('#add-deck-modal #deck-class-label').textContent = t('class');
+        document.querySelector('#add-deck-modal #cancel-deck-button').textContent = t('cancel');
+        document.querySelector('#add-deck-modal #save-deck-button').textContent = t('saveDeck');
+
+        // Delete Deck Modal
+        document.querySelector('#delete-deck-confirm-modal #delete-deck-modal-title').textContent = t('deleteDeckTitle');
+        document.querySelector('#delete-deck-confirm-modal p.text-sm').innerHTML = t('deleteDeckConfirm', {name: `<strong id="deck-to-delete-name"></strong>`});
+        document.querySelector('#delete-deck-confirm-modal #confirm-delete-deck-button').textContent = t('delete');
+        document.querySelector('#delete-deck-confirm-modal #cancel-delete-deck-button').textContent = t('cancel');
+        
+        // Delete Match Modal
+        document.querySelector('#delete-match-confirm-modal #delete-match-modal-title').textContent = t('deleteMatchTitle');
+        document.querySelector('#delete-match-confirm-modal p.text-sm').textContent = t('deleteMatchConfirm');
+        document.querySelector('#delete-match-confirm-modal #confirm-delete-match-button').textContent = t('delete');
+        document.querySelector('#delete-match-confirm-modal #cancel-delete-match-button').textContent = t('cancel');
+        
+        // Import Modal
+        document.querySelector('#import-confirm-modal #import-modal-title').textContent = t('importTitle');
+        document.querySelector('#import-confirm-modal p.text-sm').textContent = t('importConfirm');
+        document.querySelector('#import-confirm-modal #confirm-import-button').textContent = t('importAndOverwrite');
+        document.querySelector('#import-confirm-modal #cancel-import-button').textContent = t('cancel');
+
+        // Reset Modal
+        document.querySelector('#reset-confirm-modal #reset-modal-title').textContent = t('resetTitle');
+        document.querySelector('#reset-confirm-modal p.text-sm').textContent = t('resetConfirm');
+        document.querySelector('#reset-confirm-modal #confirm-reset-button').textContent = t('reset');
+        document.querySelector('#reset-confirm-modal #cancel-reset-button').textContent = t('cancel');
+    };
+
     const render = () => {
+        document.documentElement.lang = state.language;
         const { type, deckId } = state.view;
         switch (type) {
             case 'add_game':
@@ -924,6 +1072,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderDeckList();
                 break;
         }
+        renderModals();
     };
     
     // --- EVENT LISTENERS ---
@@ -943,7 +1092,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         
         state.decks.unshift(newDeck);
-        saveState();
+        saveDecks();
         closeAddDeckModal();
         render();
     });
@@ -956,7 +1105,7 @@ document.addEventListener('DOMContentLoaded', () => {
     confirmDeleteDeckButton.addEventListener('click', () => {
         if (state.deckToDeleteId) {
             state.decks = state.decks.filter(d => d.id !== state.deckToDeleteId);
-            saveState();
+            saveDecks();
             closeDeleteDeckModal();
             // If the deleted deck was the one being viewed in stats, go back to list
             if(state.view.type === 'stats' && state.view.deckId === state.deckToDeleteId) {
@@ -980,7 +1129,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 return deck;
             });
-            saveState();
+            saveDecks();
             closeDeleteMatchModal();
             render(); // Re-render the stats view
         }
@@ -1001,12 +1150,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     confirmResetButton.addEventListener('click', () => {
         state.decks = [];
-        saveState();
+        saveDecks();
         closeResetModal();
         render();
     });
     
     // --- INITIALIZATION ---
-    state.decks = loadState();
+    state.decks = loadDecks();
+    const settings = loadSettings();
+    if(settings.language && translations[settings.language]) {
+        state.language = settings.language;
+    }
     render();
 });
