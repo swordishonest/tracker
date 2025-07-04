@@ -665,7 +665,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return `
                  <li class="flex items-center justify-between p-3" data-game-id="${game.id}" data-deck-id="${game.originalDeckId || deckId}">
                     <div class="flex items-center gap-3">
-                        <span class="px-2 py-1 text-xs font-semibold rounded-full ${opponentStyle.bg} ${opponentStyle.text}">${game.opponentClass}</span>
+                        <span class="w-20 text-center px-2 py-1 text-xs font-semibold rounded-full ${opponentStyle.bg} ${opponentStyle.text}">${game.opponentClass}</span>
                         <div>
                             <p class="font-semibold ${resultStyle}">${game.result}</p>
                             <p class="text-xs text-gray-500">Went ${game.turn}</p>
