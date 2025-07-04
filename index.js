@@ -771,13 +771,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const resultStyle = game.result === 'Win' ? 'text-green-600' : 'text-red-600';
             const date = new Date(game.timestamp).toLocaleDateString(state.language === 'ja' ? 'ja-JP' : undefined, { month: 'short', day: 'numeric' });
             
+            const deckForGame = isAllDecksView ? state.decks.find(d => d.id === game.originalDeckId) : null;
+            const deckName = deckForGame ? deckForGame.name : 'Unknown';
             const gameDeckInfo = isAllDecksView ? `
-                <span class="flex-shrink-0 ml-2 px-2 py-0.5 text-xs font-semibold rounded-full ${classStyles[game.originalDeckClass].bg} ${classStyles[game.originalDeckClass].text}">${state.decks.find(d=>d.id === game.originalDeckId)?.name || 'Unknown'}</span>
+                <span class="inline-block ml-2 px-2 py-0.5 text-xs font-semibold rounded-full truncate max-w-32 ${classStyles[game.originalDeckClass].bg} ${classStyles[game.originalDeckClass].text}" title="${deckName}">${deckName}</span>
             ` : '';
 
             return `
                  <li class="flex items-center justify-between p-3" data-game-id="${game.id}" data-deck-id="${game.originalDeckId || deckId}">
-                    <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-3 min-w-0">
                         <span class="w-24 text-center px-2 py-1 text-xs font-semibold rounded-full ${opponentStyle.bg} ${opponentStyle.text}">${getTranslated(CLASS_NAMES, game.opponentClass)}</span>
                         <div>
                             <p class="font-semibold ${resultStyle}">${getTranslated(RESULT_NAMES, game.result)}</p>
@@ -802,15 +804,15 @@ document.addEventListener('DOMContentLoaded', () => {
             <main class="w-full max-w-7xl mx-auto">
                  <div class="mb-6 relative">
                     <div class="flex justify-between items-center">
-                        <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-2 min-w-0">
                             <button id="back-to-decks" class="inline-flex items-center text-blue-600 hover:text-blue-800 font-semibold text-sm">
                                 <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
                                 ${t('back')}
                             </button>
-                             <div class="relative">
-                                <button id="deck-switcher-btn" class="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-200 transition-colors">
-                                    <h2 class="text-2xl font-bold text-gray-800">${t('statsFor', {name: `<span class="${classStyles[displayDeck.class].text}">${displayDeck.name}</span>`})}</h2>
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 transition-transform ${statsDeckSwitcherVisible ? 'rotate-180' : ''}" viewBox="0 0 20 20" fill="currentColor">
+                             <div class="relative flex-1 min-w-0">
+                                <button id="deck-switcher-btn" class="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-200 transition-colors w-full">
+                                    <h2 class="text-2xl font-bold text-gray-800 truncate flex-1 min-w-0">${t('statsFor', {name: `<span class="${classStyles[displayDeck.class].text}">${displayDeck.name}</span>`})}</h2>
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 transition-transform flex-shrink-0 ${statsDeckSwitcherVisible ? 'rotate-180' : ''}" viewBox="0 0 20 20" fill="currentColor">
                                         <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
                                     </svg>
                                 </button>
