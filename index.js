@@ -1,5 +1,4 @@
 
-
 document.addEventListener('DOMContentLoaded', () => {
     // --- CONSTANTS ---
     const CLASSES = ['Forest', 'Sword', 'Rune', 'Dragon', 'Abyss', 'Haven', 'Portal'];
@@ -281,8 +280,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (decks.length === 0) {
             contentHTML = `
                 <div class="text-center border-2 border-dashed border-gray-300 rounded-lg p-12">
-                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2-2H4a2 2 0 01-2-2z" /></svg>
-                    <h3 class="mt-2 text-sm font-medium text-gray-900">No decks added yet</h3>
+                    <h3 class="text-sm font-medium text-gray-900">No decks added yet</h3>
                     <p class="mt-1 text-sm text-gray-500">Get started by creating a new deck.</p>
                 </div>
             `;
