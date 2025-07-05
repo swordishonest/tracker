@@ -20,12 +20,14 @@ document.addEventListener('DOMContentLoaded', () => {
         en: {
             // General
             'cancel': 'Cancel', 'delete': 'Delete', 'class': 'Class', 'wins': 'Wins', 'losses': 'Losses',
-            'back': 'Back', 'backToDecks': 'Back to Decks', 'import': 'Import', 'export': 'Export', 'reset': 'Reset',
+            'back': 'Back', 'import': 'Import', 'export': 'Export', 'reset': 'Reset',
+            'save': 'Save',
             'appName': 'SVWB Win Tracker', 'appSubtitle': 'All data is saved in your browser.',
             'allDecks': 'All Decks', 'addNewDeck': 'Add New Deck', 'addGame': 'Add Game', 'stats': 'Stats',
             // Deck List
             'noDecks': 'No decks added yet', 'noDecksHint': 'Get started by creating a new deck.',
-            'resetAll': 'Reset All', 'deckAriaDelete': 'Delete deck {name}',
+            'resetAll': 'Reset All', 'deckAriaDelete': 'Delete deck {name}', 'renameDeck': 'Rename deck {name}',
+            'saveName': 'Save name', 'cancelEdit': 'Cancel edit', 'lastPlayed': 'Last played',
             // Modals
             'deckName': 'Deck Name', 'deckNamePlaceholder': 'e.g. Aggro Forest', 'saveDeck': 'Save Deck',
             'deleteDeckTitle': 'Delete Deck',
@@ -38,7 +40,8 @@ document.addEventListener('DOMContentLoaded', () => {
             'resetTitle': 'Reset All Data',
             'resetConfirm': 'Are you sure you want to reset all data? All decks and match history will be permanently deleted. This action cannot be undone.',
             // Add Game
-            'addGameFor': 'Add Game for {name}', 'opponentClass': "Opponent's Class", 'turn': 'Turn', 'result': 'Result',
+            'addGameTitle': 'Add Game for {name}',
+            'opponentClass': "Opponent's Class", 'turn': 'Turn', 'result': 'Result',
             'saveGame': 'Save Game', 'gameSaved': 'Game Saved!',
             // Stats
             'statsFor': 'Stats for {name}', 'toggleDateFilter': 'Filter by Date', 'from': 'From', 'to': 'To',
@@ -53,11 +56,13 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         ja: {
             'cancel': 'キャンセル', 'delete': '削除', 'class': 'クラス', 'wins': '勝利数', 'losses': '敗北数',
-            'back': '戻る', 'backToDecks': 'デッキ一覧へ戻る', 'import': 'インポート', 'export': 'エクスポート', 'reset': 'リセット',
+            'back': '戻る', 'import': 'インポート', 'export': 'エクスポート', 'reset': 'リセット',
+            'save': '保存',
             'appName': 'SVWB 勝敗トラッカー', 'appSubtitle': 'すべてのデータはブラウザに保存されます。',
             'allDecks': 'すべてのデッキ', 'addNewDeck': '新規デッキ追加', 'addGame': '対戦を追加', 'stats': '戦績',
             'noDecks': 'まだデッキがありません', 'noDecksHint': '新しいデッキを作成して始めましょう。',
-            'resetAll': 'すべてリセット', 'deckAriaDelete': 'デッキ「{name}」を削除',
+            'resetAll': 'すべてリセット', 'deckAriaDelete': 'デッキ「{name}」を削除', 'renameDeck': 'デッキ「{name}」の名前を変更',
+            'saveName': '名前を保存', 'cancelEdit': '編集をキャンセル', 'lastPlayed': '最終プレイ日',
             'deckName': 'デッキ名', 'deckNamePlaceholder': '例: アグロエルフ', 'saveDeck': 'デッキを保存',
             'deleteDeckTitle': 'デッキを削除',
             'deleteDeckConfirm': 'デッキ「{name}」を削除しますか？関連するすべての対戦データが完全に削除されます。この操作は元に戻せません。',
@@ -68,8 +73,9 @@ document.addEventListener('DOMContentLoaded', () => {
             'importAndOverwrite': 'インポートして上書き',
             'resetTitle': 'すべてのデータをリセット',
             'resetConfirm': 'すべてのデータをリセットしますか？すべてのデッキと対戦履歴が完全に削除されます。この操作は元に戻せません。',
-            'addGameFor': '{name}の対戦を追加', 'opponentClass': '対戦相手のクラス', 'turn': '先行/後攻', 'result': '勝敗',
-            'saveGame': '対戦を保存', 'gameSaved': '対戦を保存しました！',
+            'addGameTitle': '{name}の対戦を追加',
+            'opponentClass': '対戦相手のクラス', 'turn': '先行/後攻', 'result': '勝敗',
+            'saveGame': '対戦を記録', 'gameSaved': '対戦を記録しました！',
             'statsFor': '{name}の戦績', 'toggleDateFilter': '日付でフィルター', 'from': '開始日', 'to': '終了日',
             'apply': '適用', 'clear': 'クリア', 'filterOpponent': '相手: {name}', 'filterPeriod': '期間: {start} ～ {end}',
             'noGames': '対戦記録がありません', 'noGamesHint': '対戦を記録して戦績を確認しましょう。',
@@ -98,7 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let state = {
         decks: [],
         language: 'en',
-        view: { type: 'list' }, // { type: 'list' } | { type: 'add_game', deckId: '...' } | { type: 'stats', deckId: '...', filterClass: null, dateFilter: { start: null, end: null }, statsDeckSwitcherVisible: false, dateFilterVisible: false }
+        view: { type: 'list', editingDeckId: null }, // { type: 'list', editingDeckId: '...' } | { type: 'add_game', deckId: '...' } | { type: 'stats', deckId: '...', filterClass: null, dateFilter: { start: null, end: null }, statsDeckSwitcherVisible: false, dateFilterVisible: false }
         newDeckClass: null,
         deckToDeleteId: null,
         matchToDelete: null, // { deckId: '...', gameId: '...' }
@@ -163,7 +169,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const deleteDeckConfirmModal = document.getElementById('delete-deck-confirm-modal');
     const cancelDeleteDeckButton = document.getElementById('cancel-delete-deck-button');
     const confirmDeleteDeckButton = document.getElementById('confirm-delete-deck-button');
-    const deckToDeleteNameEl = document.getElementById('deck-to-delete-name');
     
     const deleteMatchConfirmModal = document.getElementById('delete-match-confirm-modal');
     const cancelDeleteMatchButton = document.getElementById('cancel-delete-match-button');
@@ -229,11 +234,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const openDeleteDeckModal = (deckId) => {
-        const deck = state.decks.find(d => d.id === deckId);
-        if (!deck) return;
-
         state.deckToDeleteId = deckId;
-        deckToDeleteNameEl.textContent = deck.name;
+        renderModals(); // Have renderModals do the DOM work
         deleteDeckConfirmModal.classList.remove('hidden');
         deleteDeckConfirmModal.querySelector('div').classList.add('animate-fade-in-up');
     };
@@ -398,16 +400,48 @@ document.addEventListener('DOMContentLoaded', () => {
                 const wins = deck.games.filter(g => g.result === 'Win').length;
                 const losses = deck.games.filter(g => g.result === 'Loss').length;
                 const style = classStyles[deck.class];
+                
+                const lastGame = deck.games.length > 0 ? [...deck.games].sort((a, b) => b.timestamp - a.timestamp)[0] : null;
+                const lastPlayedDate = lastGame ? new Date(lastGame.timestamp).toLocaleDateString(state.language === 'ja' ? 'ja-JP' : undefined, { month: 'short', day: 'numeric' }) : null;
+
+                const isEditing = state.view.type === 'list' && state.view.editingDeckId === deck.id;
+
                 return `
                     <div class="bg-white rounded-lg shadow-md border-l-4 ${style.border} p-4 flex flex-col justify-between transition-all hover:shadow-xl hover:-translate-y-px">
                         <div class="flex-grow">
-                            <div class="flex justify-between items-center mb-1">
-                                <h3 class="text-lg font-bold text-gray-800 truncate" title="${deck.name}">${deck.name}</h3>
-                                <span class="flex-shrink-0 ml-2 px-2 py-0.5 text-xs font-semibold rounded-full ${style.bg} ${style.text}">${getTranslated(CLASS_NAMES, deck.class)}</span>
-                            </div>
-                            <div class="mt-2 flex justify-between items-baseline text-base">
-                                <p><span class="font-bold text-green-600">${wins}</span> <span class="text-sm text-gray-500">${t('wins')}</span></p>
-                                <p><span class="font-bold text-red-600">${losses}</span> <span class="text-sm text-gray-500">${t('losses')}</span></p>
+                            ${isEditing ? `
+                                <div class="flex gap-2 items-center mb-1">
+                                    <input 
+                                        type="text" 
+                                        value="${deck.name}" 
+                                        data-deck-id="${deck.id}"
+                                        aria-label="Deck name"
+                                        class="flex-grow w-full px-2 py-1 text-lg font-bold border border-blue-400 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                                    >
+                                    <button data-action="save-edit" data-deck-id="${deck.id}" aria-label="${t('saveName')}" class="flex-shrink-0 p-1.5 text-white bg-green-500 rounded-full hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
+                                    </button>
+                                     <button data-action="cancel-edit" data-deck-id="${deck.id}" aria-label="${t('cancelEdit')}" class="flex-shrink-0 p-1.5 text-white bg-red-500 rounded-full hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                    </button>
+                                </div>
+                            ` : `
+                                <div class="flex justify-between items-start mb-1">
+                                    <div class="flex items-center gap-2 min-w-0">
+                                        <h3 class="text-lg font-bold text-gray-800 truncate" title="${deck.name}">${deck.name}</h3>
+                                        <button data-action="edit-deck" data-deck-id="${deck.id}" aria-label="${t('renameDeck', {name: deck.name})}" class="p-1.5 text-gray-400 rounded-full hover:bg-gray-200 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-gray-400 flex-shrink-0">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L16.732 3.732z" /></svg>
+                                        </button>
+                                    </div>
+                                    <span class="flex-shrink-0 ml-2 px-2 py-0.5 text-xs font-semibold rounded-full ${style.bg} ${style.text}">${getTranslated(CLASS_NAMES, deck.class)}</span>
+                                </div>
+                            `}
+                            <div class="mt-3 flex justify-between items-end text-sm">
+                                <div class="flex items-baseline gap-4">
+                                    <p><span class="font-bold text-lg text-green-600">${wins}</span> <span class="text-gray-500">${t('wins')}</span></p>
+                                    <p><span class="font-bold text-lg text-red-600">${losses}</span> <span class="text-gray-500">${t('losses')}</span></p>
+                                </div>
+                                ${lastPlayedDate ? `<p class="text-xs text-gray-400">${lastPlayedDate}</p>` : ''}
                             </div>
                         </div>
                         <div class="mt-4 border-t border-gray-200 pt-3 flex items-center justify-between">
@@ -469,38 +503,88 @@ document.addEventListener('DOMContentLoaded', () => {
         appContainer.querySelectorAll('[data-action]').forEach(button => {
             button.addEventListener('click', (e) => {
                 const { action, deckId } = e.currentTarget.dataset;
-                if (action && deckId) {
-                    if (action === 'delete') {
-                        openDeleteDeckModal(deckId);
-                    } else if (action === 'stats') {
-                        state.view = { type: 'stats', deckId, filterClass: null, dateFilter: { start: null, end: null }, statsDeckSwitcherVisible: false, dateFilterVisible: false };
-                        render();
-                    } else {
-                        state.view = { type: action, deckId };
-                        render();
+                if (!action || !deckId) return;
+
+                if (action === 'delete') {
+                    openDeleteDeckModal(deckId);
+                } else if (action === 'stats') {
+                    state.view = { type: 'stats', deckId, filterClass: null, dateFilter: { start: null, end: null }, statsDeckSwitcherVisible: false, dateFilterVisible: false };
+                    render();
+                } else if (action === 'add_game') {
+                    state.view = { type: action, deckId };
+                    render();
+                } else if (action === 'edit-deck') {
+                    state.view.editingDeckId = deckId;
+                    render();
+                } else if (action === 'save-edit') {
+                    const input = appContainer.querySelector(`input[data-deck-id="${deckId}"]`);
+                    const newName = input.value.trim();
+                    if (newName) {
+                        state.decks = state.decks.map(d => d.id === deckId ? { ...d, name: newName } : d);
+                        saveDecks();
                     }
+                    state.view.editingDeckId = null;
+                    render();
+                } else if (action === 'cancel-edit') {
+                    state.view.editingDeckId = null;
+                    render();
                 }
             });
         });
+
+        if (state.view.type === 'list' && state.view.editingDeckId) {
+            const deckId = state.view.editingDeckId;
+            const input = appContainer.querySelector(`input[data-deck-id="${deckId}"]`);
+            if(input) {
+                input.focus();
+                input.select();
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const newName = input.value.trim();
+                        if (newName) {
+                            state.decks = state.decks.map(d => d.id === deckId ? { ...d, name: newName } : d);
+                            saveDecks();
+                        }
+                        state.view.editingDeckId = null;
+                        render();
+                    } else if (e.key === 'Escape') {
+                        state.view.editingDeckId = null;
+                        render();
+                    }
+                });
+            }
+        }
     };
 
     const renderAddGameView = (deckId) => {
         const deck = state.decks.find(d => d.id === deckId);
         if (!deck) {
-            state.view = { type: 'list' };
+            state.view = { type: 'list', editingDeckId: null };
             render();
             return;
         }
+        
+        const titleWithPlaceholder = t('addGameTitle', { name: '%%DECK_NAME%%' });
+        const [prefix, suffix] = titleWithPlaceholder.split('%%DECK_NAME%%');
 
         appContainer.innerHTML = `
-             <main class="w-full max-w-6xl mx-auto">
-                <div class="bg-white rounded-xl shadow-lg p-6 md:p-10">
-                    <button id="back-to-decks" class="mb-6 inline-flex items-center text-blue-600 hover:text-blue-800 font-semibold text-sm">
-                        <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
-                        ${t('backToDecks')}
+            <main class="w-full max-w-2xl mx-auto">
+                <div class="flex items-center justify-between gap-4 mb-4">
+                    <button id="back-to-decks" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+                        ${t('back')}
                     </button>
-                    <h2 class="text-2xl font-bold text-gray-800">${t('addGameFor', {name: `<span class="${classStyles[deck.class].text}">${deck.name}</span>`})}</h2>
-                    <form id="add-game-form" class="mt-6 space-y-6">
+                    <div class="flex-1 min-w-0 overflow-hidden">
+                        <h2 class="flex items-baseline justify-end text-xl font-bold text-gray-800" title="${t('addGameTitle', { name: deck.name })}">
+                            <span class="whitespace-nowrap">${prefix}</span>
+                            <span class="ml-1 ${classStyles[deck.class].text} truncate">${deck.name}</span>
+                            <span class="whitespace-nowrap">${suffix}</span>
+                        </h2>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-lg p-6 md:p-8">
+                    <form id="add-game-form" class="space-y-6">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">${t('opponentClass')}</label>
                             <div id="game-class-selector-container"></div>
@@ -590,7 +674,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         document.getElementById('back-to-decks').addEventListener('click', () => {
-            state.view = { type: 'list' };
+            state.view = { type: 'list', editingDeckId: null };
             render();
         });
         
@@ -635,7 +719,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (!displayDeck) {
-            state.view = { type: 'list' };
+            state.view = { type: 'list', editingDeckId: null };
             render();
             return;
         }
@@ -799,18 +883,48 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         }).join('');
 
+        const statsLayoutHTML = `
+            <div class="flex justify-around items-start text-center md:grid md:grid-cols-[max-content,auto] md:gap-x-6 md:gap-y-4 md:text-left">
+                <!-- Overall -->
+                <div class="md:contents">
+                    <p class="text-sm text-gray-500 md:text-right md:font-semibold md:self-center">${t('winRate')}</p>
+                    <div>
+                        <p class="text-2xl font-bold text-gray-800">${stats.winRate}</p>
+                        <p class="text-xs text-gray-400">${stats.wins}${t('winsShort')} / ${stats.losses}${t('lossesShort')}</p>
+                    </div>
+                </div>
+
+                <!-- 1st -->
+                <div class="md:contents">
+                    <p class="text-sm text-gray-500 md:text-right md:font-semibold md:self-center">${t('firstWinRate')}</p>
+                    <div>
+                        <p class="text-xl font-semibold text-gray-800">${stats.firstTurnWinRate}</p>
+                        <p class="text-xs text-gray-400">${stats.firstTurnTotal > 0 ? `${stats.firstTurnWins}${t('winsShort')} / ${stats.firstTurnTotal}${t('gamesShort')}` : t('na')}</p>
+                    </div>
+                </div>
+
+                <!-- 2nd -->
+                <div class="md:contents">
+                    <p class="text-sm text-gray-500 md:text-right md:font-semibold md:self-center">${t('secondWinRate')}</p>
+                    <div>
+                        <p class="text-xl font-semibold text-gray-800">${stats.secondTurnWinRate}</p>
+                        <p class="text-xs text-gray-400">${stats.secondTurnTotal > 0 ? `${stats.secondTurnWins}${t('winsShort')} / ${stats.secondTurnTotal}${t('gamesShort')}` : t('na')}</p>
+                    </div>
+                </div>
+            </div>
+        `;
 
         appContainer.innerHTML = `
             <main class="w-full max-w-7xl mx-auto">
-                 <div class="mb-6 relative">
+                 <div class="relative">
                     <div class="flex justify-between items-center">
                         <div class="flex items-center gap-2 min-w-0">
-                            <button id="back-to-decks" class="inline-flex items-center text-blue-600 hover:text-blue-800 font-semibold text-sm">
-                                <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+                            <button id="back-to-decks" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
                                 ${t('back')}
                             </button>
-                             <div class="relative flex-1 min-w-0">
-                                <button id="deck-switcher-btn" class="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-200 transition-colors w-full">
+                             <div class="relative flex-1 min-w-0 ml-2">
+                                <button id="deck-switcher-btn" class="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-200 transition-colors w-full text-left">
                                     <h2 class="text-2xl font-bold text-gray-800 truncate flex-1 min-w-0">${t('statsFor', {name: `<span class="${classStyles[displayDeck.class].text}">${displayDeck.name}</span>`})}</h2>
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 transition-transform flex-shrink-0 ${statsDeckSwitcherVisible ? 'rotate-180' : ''}" viewBox="0 0 20 20" fill="currentColor">
                                         <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
@@ -873,31 +987,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 
                 ${displayDeck.games.length === 0 ? `
-                    <div class="text-center bg-white rounded-lg shadow-md border-2 border-dashed border-gray-300 p-12 mt-6">
+                    <div class="text-center bg-white rounded-lg shadow-md border-2 border-dashed border-gray-300 p-12 mt-4">
                         <h3 class="text-sm font-medium text-gray-900">${t('noGames')}</h3>
                         <p class="mt-1 text-sm text-gray-500">${t('noGamesHint')}</p>
                     </div>
                 ` : `
-                    <div class="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
+                    <div class="mt-4 grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
                         <!-- CARD 1: PERFORMANCE & OPPONENT OVERVIEW -->
                         <div class="bg-white rounded-lg shadow-md p-6">
                             <div class="flex flex-col md:flex-row items-center justify-around gap-6">
-                                <div class="flex flex-row md:flex-col justify-around md:justify-start items-baseline gap-4 md:gap-6 w-full md:w-auto text-center flex-shrink-0">
-                                    <div>
-                                        <p class="text-sm text-gray-500">${t('winRate')}</p>
-                                        <p class="text-2xl md:text-3xl font-bold text-gray-800">${stats.winRate}</p>
-                                        <p class="text-xs text-gray-400">${stats.wins}${t('winsShort')} / ${stats.losses}${t('lossesShort')}</p>
-                                    </div>
-                                    <div>
-                                        <p class="text-sm text-gray-500">${t('firstWinRate')}</p>
-                                        <p class="text-xl md:text-2xl font-semibold text-gray-800">${stats.firstTurnWinRate}</p>
-                                        <p class="text-xs text-gray-400">${stats.firstTurnTotal > 0 ? `${stats.firstTurnWins}${t('winsShort')} / ${stats.firstTurnTotal}${t('gamesShort')}` : t('na')}</p>
-                                    </div>
-                                    <div>
-                                        <p class="text-sm text-gray-500">${t('secondWinRate')}</p>
-                                        <p class="text-xl md:text-2xl font-semibold text-gray-800">${stats.secondTurnWinRate}</p>
-                                        <p class="text-xs text-gray-400">${stats.secondTurnTotal > 0 ? `${stats.secondTurnWins}${t('winsShort')} / ${stats.secondTurnTotal}${t('gamesShort')}` : t('na')}</p>
-                                    </div>
+                                <div class="flex-shrink-0 w-full md:w-64">
+                                    ${statsLayoutHTML}
                                 </div>
                                 <div class="flex-grow flex justify-center">
                                     ${createDonutChart()}
@@ -935,7 +1035,7 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         
         document.getElementById('back-to-decks').addEventListener('click', () => {
-            state.view = { type: 'list' };
+            state.view = { type: 'list', editingDeckId: null };
             render();
         });
 
@@ -1036,7 +1136,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Delete Deck Modal
         document.querySelector('#delete-deck-confirm-modal #delete-deck-modal-title').textContent = t('deleteDeckTitle');
-        document.querySelector('#delete-deck-confirm-modal p.text-sm').innerHTML = t('deleteDeckConfirm', {name: `<strong id="deck-to-delete-name"></strong>`});
+        const deckToDelete = state.deckToDeleteId ? state.decks.find(d => d.id === state.deckToDeleteId) : null;
+        document.querySelector('#delete-deck-confirm-modal p.text-sm').innerHTML = t('deleteDeckConfirm', {name: `<strong id="deck-to-delete-name">${deckToDelete ? deckToDelete.name : ''}</strong>`});
         document.querySelector('#delete-deck-confirm-modal #confirm-delete-deck-button').textContent = t('delete');
         document.querySelector('#delete-deck-confirm-modal #cancel-delete-deck-button').textContent = t('cancel');
         
@@ -1108,10 +1209,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (state.deckToDeleteId) {
             state.decks = state.decks.filter(d => d.id !== state.deckToDeleteId);
             saveDecks();
+            const deckToDeleteId = state.deckToDeleteId;
             closeDeleteDeckModal();
             // If the deleted deck was the one being viewed in stats, go back to list
-            if(state.view.type === 'stats' && state.view.deckId === state.deckToDeleteId) {
-                state.view = { type: 'list' };
+            if(state.view.type === 'stats' && state.view.deckId === deckToDeleteId) {
+                state.view = { type: 'list', editingDeckId: null };
             }
             render();
         }
@@ -1155,6 +1257,40 @@ document.addEventListener('DOMContentLoaded', () => {
         saveDecks();
         closeResetModal();
         render();
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+
+        // Modals are prioritized
+        if (!addDeckModal.classList.contains('hidden')) {
+            e.preventDefault();
+            closeAddDeckModal();
+        } else if (!deleteDeckConfirmModal.classList.contains('hidden')) {
+            e.preventDefault();
+            closeDeleteDeckModal();
+        } else if (!deleteMatchConfirmModal.classList.contains('hidden')) {
+            e.preventDefault();
+            closeDeleteMatchModal();
+        } else if (!importConfirmModal.classList.contains('hidden')) {
+            e.preventDefault();
+            closeImportModal();
+        } else if (!resetConfirmModal.classList.contains('hidden')) {
+            e.preventDefault();
+            closeResetModal();
+        } 
+        // Then views
+        else if (state.view.type === 'add_game' || state.view.type === 'stats') {
+            e.preventDefault();
+            state.view = { type: 'list', editingDeckId: null };
+            render();
+        } 
+        // Then deck name editing
+        else if (state.view.type === 'list' && state.view.editingDeckId) {
+            e.preventDefault();
+            state.view.editingDeckId = null;
+            render();
+        }
     });
     
     // --- INITIALIZATION ---
