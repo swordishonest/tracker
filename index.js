@@ -104,6 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let state = {
         decks: [],
         language: 'en',
+        theme: 'light',
         view: { type: 'list', editingDeckId: null }, // { type: 'list', editingDeckId: '...' } | { type: 'add_game', deckId: '...' } | { type: 'stats', deckId: '...', filterClass: null, dateFilter: { start: null, end: null }, statsDeckSwitcherVisible: false, dateFilterVisible: false }
         newDeckClass: null,
         deckToDeleteId: null,
@@ -151,7 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const saveSettings = () => {
         try {
-            localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify({ language: state.language }));
+            localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify({ language: state.language, theme: state.theme }));
         } catch (error) {
             console.error("Could not save settings to localStorage", error);
         }
@@ -183,6 +184,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const cancelResetButton = document.getElementById('cancel-reset-button');
     const confirmResetButton = document.getElementById('confirm-reset-button');
     
+    // --- THEME ---
+    const setTheme = (theme) => {
+        state.theme = theme;
+        if (theme === 'dark') {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+        saveSettings();
+        // Re-render to update theme-dependent button icons etc.
+        render(); 
+    };
+
     // --- UI HELPERS ---
 
     const checkDeckFormValidity = () => {
@@ -227,10 +241,12 @@ document.addEventListener('DOMContentLoaded', () => {
         renderModalClassSelector();
         checkDeckFormValidity();
         addDeckModal.classList.remove('hidden');
+        addDeckModal.querySelector('div').classList.add('animate-fade-in-up');
     };
     
     const closeAddDeckModal = () => {
         addDeckModal.classList.add('hidden');
+        addDeckModal.querySelector('div').classList.remove('animate-fade-in-up');
     };
 
     const openDeleteDeckModal = (deckId) => {
@@ -390,9 +406,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (decks.length === 0) {
             contentHTML = `
-                <div class="text-center border-2 border-dashed border-gray-300 rounded-lg p-12">
-                    <h3 class="text-sm font-medium text-gray-900">${t('noDecks')}</h3>
-                    <p class="mt-1 text-sm text-gray-500">${t('noDecksHint')}</p>
+                <div class="text-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-12">
+                    <h3 class="text-sm font-medium text-gray-900 dark:text-gray-200">${t('noDecks')}</h3>
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">${t('noDecksHint')}</p>
                 </div>
             `;
         } else {
@@ -407,7 +423,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const isEditing = state.view.type === 'list' && state.view.editingDeckId === deck.id;
 
                 return `
-                    <div class="bg-white rounded-lg shadow-md border-l-4 ${style.border} p-4 flex flex-col justify-between transition-all hover:shadow-xl hover:-translate-y-px">
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md border-l-4 ${style.border} p-4 flex flex-col justify-between transition-all hover:shadow-xl hover:-translate-y-px dark:hover:shadow-lg dark:hover:shadow-blue-500/10">
                         <div class="flex-grow">
                             ${isEditing ? `
                                 <div class="flex gap-2 items-center mb-1">
@@ -416,7 +432,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                         value="${deck.name}" 
                                         data-deck-id="${deck.id}"
                                         aria-label="Deck name"
-                                        class="flex-grow w-full px-2 py-1 text-lg font-bold border border-blue-400 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                                        class="flex-grow w-full px-2 py-1 text-lg font-bold border border-blue-400 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                     >
                                     <button data-action="save-edit" data-deck-id="${deck.id}" aria-label="${t('saveName')}" class="flex-shrink-0 p-1.5 text-white bg-green-500 rounded-full hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
@@ -428,8 +444,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             ` : `
                                 <div class="flex justify-between items-start mb-1">
                                     <div class="flex items-center gap-2 min-w-0">
-                                        <h3 class="text-lg font-bold text-gray-800 truncate" title="${deck.name}">${deck.name}</h3>
-                                        <button data-action="edit-deck" data-deck-id="${deck.id}" aria-label="${t('renameDeck', {name: deck.name})}" class="p-1.5 text-gray-400 rounded-full hover:bg-gray-200 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-gray-400 flex-shrink-0">
+                                        <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 truncate" title="${deck.name}">${deck.name}</h3>
+                                        <button data-action="edit-deck" data-deck-id="${deck.id}" aria-label="${t('renameDeck', {name: deck.name})}" class="p-1.5 text-gray-400 dark:text-gray-500 rounded-full hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-gray-400 flex-shrink-0">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L16.732 3.732z" /></svg>
                                         </button>
                                     </div>
@@ -438,18 +454,18 @@ document.addEventListener('DOMContentLoaded', () => {
                             `}
                             <div class="mt-3 flex justify-between items-end text-sm">
                                 <div class="flex items-baseline gap-4">
-                                    <p><span class="font-bold text-lg text-green-600">${wins}</span> <span class="text-gray-500">${t('wins')}</span></p>
-                                    <p><span class="font-bold text-lg text-red-600">${losses}</span> <span class="text-gray-500">${t('losses')}</span></p>
+                                    <p><span class="font-bold text-lg text-green-600">${wins}</span> <span class="text-gray-500 dark:text-gray-400">${t('wins')}</span></p>
+                                    <p><span class="font-bold text-lg text-red-600">${losses}</span> <span class="text-gray-500 dark:text-gray-400">${t('losses')}</span></p>
                                 </div>
-                                ${lastPlayedDate ? `<p class="text-xs text-gray-400">${lastPlayedDate}</p>` : ''}
+                                ${lastPlayedDate ? `<p class="text-xs text-gray-400 dark:text-gray-500">${lastPlayedDate}</p>` : ''}
                             </div>
                         </div>
-                        <div class="mt-4 border-t border-gray-200 pt-3 flex items-center justify-between">
+                        <div class="mt-4 border-t border-gray-200 dark:border-gray-700 pt-3 flex items-center justify-between">
                             <div class="flex gap-2">
                                 <button data-action="add_game" data-deck-id="${deck.id}" class="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">${t('addGame')}</button>
-                                <button data-action="stats" data-deck-id="${deck.id}" class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400">${t('stats')}</button>
+                                <button data-action="stats" data-deck-id="${deck.id}" class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-400">${t('stats')}</button>
                             </div>
-                            <button data-action="delete" data-deck-id="${deck.id}" aria-label="${t('deckAriaDelete', {name: deck.name})}" class="p-2 text-gray-400 rounded-full hover:bg-red-100 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                            <button data-action="delete" data-deck-id="${deck.id}" aria-label="${t('deckAriaDelete', {name: deck.name})}" class="p-2 text-gray-400 dark:text-gray-500 rounded-full hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/50 dark:hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 pointer-events-none" viewBox="0 0 20 20" fill="currentColor">
                                     <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" />
                                 </svg>
@@ -460,22 +476,28 @@ document.addEventListener('DOMContentLoaded', () => {
             }).join('');
             contentHTML = `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">${deckCardsHTML}</div>`;
         }
+        
+        const moonIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" /></svg>`;
+        const sunIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>`;
 
         appContainer.innerHTML = `
             <main class="w-full max-w-7xl mx-auto">
-                <div class="bg-white rounded-xl shadow-lg p-6 md:p-10">
-                    <h1 class="text-3xl sm:text-4xl font-bold text-gray-800 tracking-tight text-center">${t('appName')}</h1>
+                <div class="bg-white dark:bg-gray-800 dark:border dark:border-gray-700/50 rounded-xl shadow-lg p-6 md:p-10">
+                    <h1 class="text-3xl sm:text-4xl font-bold text-gray-800 dark:text-gray-100 tracking-tight text-center">${t('appName')}</h1>
                     <div class="mt-6 flex items-center justify-center sm:justify-end gap-2 flex-wrap">
-                        <button id="toggle-lang-btn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400">
+                        <button id="theme-toggle-btn" class="p-2 rounded-md text-gray-500 hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500">
+                           ${state.theme === 'dark' ? sunIcon : moonIcon}
+                        </button>
+                        <button id="toggle-lang-btn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-400">
                             ${state.language === 'en' ? '日本語' : 'English'}
                         </button>
-                        <button id="import-btn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400">
+                        <button id="import-btn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-400">
                             ${t('import')}
                         </button>
-                        <button id="export-btn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400 disabled:opacity-50" ${decks.length === 0 ? 'disabled' : ''}>
+                        <button id="export-btn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-400 disabled:opacity-50" ${decks.length === 0 ? 'disabled' : ''}>
                             ${t('export')}
                         </button>
-                        <button id="reset-all-btn" class="px-4 py-2 text-sm font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-red-400 disabled:opacity-50 disabled:cursor-not-allowed" ${decks.length === 0 ? 'disabled' : ''}>
+                        <button id="reset-all-btn" class="px-4 py-2 text-sm font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200 dark:bg-red-900/50 dark:text-red-300 dark:hover:bg-red-900 focus:outline-none focus:ring-2 focus:ring-red-400 disabled:opacity-50 disabled:cursor-not-allowed" ${decks.length === 0 ? 'disabled' : ''}>
                             ${t('resetAll')}
                         </button>
                         <button id="add-deck-btn" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition-transform transform hover:scale-105">
@@ -483,7 +505,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         </button>
                     </div>
                     <div class="mt-10">${contentHTML}</div>
-                    <p class="mt-8 text-center text-base text-gray-500">${t('appSubtitle')}</p>
+                    <p class="mt-8 text-center text-base text-gray-500 dark:text-gray-400">${t('appSubtitle')}</p>
                 </div>
             </main>
         `;
@@ -491,6 +513,9 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('add-deck-btn').addEventListener('click', openAddDeckModal);
         document.getElementById('import-btn').addEventListener('click', handleImport);
         document.getElementById('export-btn').addEventListener('click', handleExport);
+        document.getElementById('theme-toggle-btn').addEventListener('click', () => {
+            setTheme(state.theme === 'light' ? 'dark' : 'light');
+        });
         document.getElementById('toggle-lang-btn').addEventListener('click', () => {
             state.language = state.language === 'en' ? 'ja' : 'en';
             saveSettings();
@@ -571,39 +596,39 @@ document.addEventListener('DOMContentLoaded', () => {
         appContainer.innerHTML = `
             <main class="w-full max-w-2xl mx-auto">
                 <div class="flex items-center justify-between gap-4 mb-4">
-                    <button id="back-to-decks" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                    <button id="back-to-decks" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
                         <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
                         ${t('back')}
                     </button>
                     <div class="flex-1 min-w-0 overflow-hidden">
-                        <h2 class="flex items-baseline justify-end text-xl font-bold text-gray-800" title="${t('addGameTitle', { name: deck.name })}">
+                        <h2 class="flex items-baseline justify-end text-xl font-bold text-gray-800 dark:text-gray-100" title="${t('addGameTitle', { name: deck.name })}">
                             <span class="whitespace-nowrap">${prefix}</span>
                             <span class="ml-1 ${classStyles[deck.class].text} truncate">${deck.name}</span>
                             <span class="whitespace-nowrap">${suffix}</span>
                         </h2>
                     </div>
                 </div>
-                <div class="bg-white rounded-xl shadow-lg p-6 md:p-8">
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 md:p-8">
                     <form id="add-game-form" class="space-y-6">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">${t('opponentClass')}</label>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">${t('opponentClass')}</label>
                             <div id="game-class-selector-container"></div>
                         </div>
                         <div>
-                            <span class="block text-sm font-medium text-gray-700">${t('turn')}</span>
+                            <span class="block text-sm font-medium text-gray-700 dark:text-gray-300">${t('turn')}</span>
                             <div id="turn-selector" class="mt-2 grid grid-cols-2 gap-4">
-                                <button type="button" data-value="1st" class="w-full text-center px-4 py-3 font-semibold rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-150 transform hover:-translate-y-px bg-gray-200 text-gray-700 hover:bg-gray-300 ring-blue-500">${getTranslated(TURN_NAMES, '1st')}</button>
-                                <button type="button" data-value="2nd" class="w-full text-center px-4 py-3 font-semibold rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-150 transform hover:-translate-y-px bg-gray-200 text-gray-700 hover:bg-gray-300 ring-blue-500">${getTranslated(TURN_NAMES, '2nd')}</button>
+                                <button type="button" data-value="1st" class="w-full text-center px-4 py-3 font-semibold rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-150 transform hover:-translate-y-px bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 ring-blue-500">${getTranslated(TURN_NAMES, '1st')}</button>
+                                <button type="button" data-value="2nd" class="w-full text-center px-4 py-3 font-semibold rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-150 transform hover:-translate-y-px bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 ring-blue-500">${getTranslated(TURN_NAMES, '2nd')}</button>
                             </div>
                         </div>
                         <div>
-                            <span class="block text-sm font-medium text-gray-700">${t('result')}</span>
+                            <span class="block text-sm font-medium text-gray-700 dark:text-gray-300">${t('result')}</span>
                             <div id="result-selector" class="mt-2 grid grid-cols-2 gap-4">
                                 <button type="button" data-value="Win" class="w-full text-center px-4 py-3 font-semibold rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-150 transform hover:-translate-y-px bg-green-100 text-green-800 hover:bg-green-200 ring-green-500">${getTranslated(RESULT_NAMES, 'Win')}</button>
                                 <button type="button" data-value="Loss" class="w-full text-center px-4 py-3 font-semibold rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-150 transform hover:-translate-y-px bg-red-100 text-red-800 hover:bg-red-200 ring-red-500">${getTranslated(RESULT_NAMES, 'Loss')}</button>
                             </div>
                         </div>
-                        <div class="border-t border-gray-200 pt-5">
+                        <div class="border-t border-gray-200 dark:border-gray-700 pt-5">
                              <button id="save-game-button" type="submit" disabled class="w-full px-4 py-3 font-semibold rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors duration-200 bg-gray-400 text-gray-100 cursor-not-allowed ring-gray-400">
                                 ${t('saveGame')}
                             </button>
@@ -649,7 +674,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (btn.dataset.value === turn) {
                         btn.className = `w-full text-center px-4 py-3 font-semibold rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-150 transform hover:-translate-y-px bg-blue-600 text-white shadow-md ring-blue-500`;
                     } else {
-                        btn.className = `w-full text-center px-4 py-3 font-semibold rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-150 transform hover:-translate-y-px bg-gray-200 text-gray-700 hover:bg-gray-300 ring-blue-500`;
+                        btn.className = `w-full text-center px-4 py-3 font-semibold rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all duration-150 transform hover:-translate-y-px bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 ring-blue-500`;
                     }
                 });
                 checkFormComplete();
@@ -816,8 +841,8 @@ document.addEventListener('DOMContentLoaded', () => {
                      <svg width="240" height="240" viewBox="0 0 260 260" class="-rotate-90">${segments}</svg>
                      <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
                          <div class="text-center">
-                             <p class="text-4xl font-bold text-gray-800">${stats.total}</p>
-                             <p class="text-sm text-gray-500">${t('games')}</p>
+                             <p class="text-4xl font-bold text-gray-800 dark:text-gray-100">${stats.total}</p>
+                             <p class="text-sm text-gray-500 dark:text-gray-400">${t('games')}</p>
                          </div>
                      </div>
                  </div>
@@ -834,16 +859,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const isFiltered = filterClass === cls;
 
             return `
-                <button data-action="filter-stats" data-class="${cls}" class="grid grid-cols-3 w-full text-left p-2 rounded-md items-center transition-all duration-200 ${isFiltered ? `bg-blue-100 ring-1 ring-blue-400 shadow-sm` : 'hover:bg-gray-50'}">
+                <button data-action="filter-stats" data-class="${cls}" class="grid grid-cols-3 w-full text-left p-2 rounded-md items-center transition-all duration-200 ${isFiltered ? `bg-blue-100 dark:bg-blue-900/40 ring-1 ring-blue-400 shadow-sm` : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'}">
                     <span class="flex items-center gap-3 col-span-1 truncate">
                         <span class="w-3 h-3 rounded-full flex-shrink-0" style="background-color: ${style.chart}"></span>
-                        <span class="text-sm font-medium text-gray-700 truncate">${getTranslated(CLASS_NAMES, cls)}</span>
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">${getTranslated(CLASS_NAMES, cls)}</span>
                     </span>
-                    <span class="text-sm text-gray-600 text-center col-span-1">
-                        <span class="font-semibold text-gray-800">${percentage}%</span>
+                    <span class="text-sm text-gray-600 dark:text-gray-400 text-center col-span-1">
+                        <span class="font-semibold text-gray-800 dark:text-gray-100">${percentage}%</span>
                     </span>
-                    <span class="text-sm text-gray-600 text-right col-span-1">
-                        <span class="font-semibold text-gray-800">${winRate}</span>
+                    <span class="text-sm text-gray-600 dark:text-gray-400 text-right col-span-1">
+                        <span class="font-semibold text-gray-800 dark:text-gray-100">${winRate}</span>
                     </span>
                 </button>
             `;
@@ -852,7 +877,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const recentMatchesHTML = sortedGames.map(game => {
             const opponentStyle = classStyles[game.opponentClass];
-            const resultStyle = game.result === 'Win' ? 'text-green-600' : 'text-red-600';
+            const resultStyle = game.result === 'Win' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
             const date = new Date(game.timestamp).toLocaleDateString(state.language === 'ja' ? 'ja-JP' : undefined, { month: 'short', day: 'numeric' });
             
             const deckForGame = isAllDecksView ? state.decks.find(d => d.id === game.originalDeckId) : null;
@@ -867,13 +892,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span class="w-24 text-center px-2 py-1 text-xs font-semibold rounded-full ${opponentStyle.bg} ${opponentStyle.text}">${getTranslated(CLASS_NAMES, game.opponentClass)}</span>
                         <div>
                             <p class="font-semibold ${resultStyle}">${getTranslated(RESULT_NAMES, game.result)}</p>
-                            <p class="text-xs text-gray-500">${t('wentTurn', {turn: getTranslated(TURN_NAMES, game.turn)})}</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">${t('wentTurn', {turn: getTranslated(TURN_NAMES, game.turn)})}</p>
                         </div>
                         ${gameDeckInfo}
                     </div>
                     <div class="flex items-center gap-2">
-                        <p class="text-sm text-gray-400">${date}</p>
-                        <button data-action="delete-match" aria-label="${t('matchAriaDelete')}" class="p-1 text-gray-400 rounded-full hover:bg-red-100 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-red-500">
+                        <p class="text-sm text-gray-400 dark:text-gray-500">${date}</p>
+                        <button data-action="delete-match" aria-label="${t('matchAriaDelete')}" class="p-1 text-gray-400 dark:text-gray-500 rounded-full hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/50 dark:hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-red-500">
                              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                                 <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" />
                             </svg>
@@ -887,28 +912,28 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="flex justify-around items-start text-center md:grid md:grid-cols-[max-content,auto] md:gap-x-6 md:gap-y-4 md:text-left">
                 <!-- Overall -->
                 <div class="md:contents">
-                    <p class="text-sm text-gray-500 md:text-right md:font-semibold md:self-center">${t('winRate')}</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 md:text-right md:font-semibold md:self-center">${t('winRate')}</p>
                     <div>
-                        <p class="text-2xl font-bold text-gray-800">${stats.winRate}</p>
-                        <p class="text-xs text-gray-400">${stats.wins}${t('winsShort')} / ${stats.losses}${t('lossesShort')}</p>
+                        <p class="text-2xl font-bold text-gray-800 dark:text-gray-100">${stats.winRate}</p>
+                        <p class="text-xs text-gray-400 dark:text-gray-500">${stats.wins}${t('winsShort')} / ${stats.losses}${t('lossesShort')}</p>
                     </div>
                 </div>
 
                 <!-- 1st -->
                 <div class="md:contents">
-                    <p class="text-sm text-gray-500 md:text-right md:font-semibold md:self-center">${t('firstWinRate')}</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 md:text-right md:font-semibold md:self-center">${t('firstWinRate')}</p>
                     <div>
-                        <p class="text-xl font-semibold text-gray-800">${stats.firstTurnWinRate}</p>
-                        <p class="text-xs text-gray-400">${stats.firstTurnTotal > 0 ? `${stats.firstTurnWins}${t('winsShort')} / ${stats.firstTurnTotal}${t('gamesShort')}` : t('na')}</p>
+                        <p class="text-xl font-semibold text-gray-800 dark:text-gray-100">${stats.firstTurnWinRate}</p>
+                        <p class="text-xs text-gray-400 dark:text-gray-500">${stats.firstTurnTotal > 0 ? `${stats.firstTurnWins}${t('winsShort')} / ${stats.firstTurnTotal}${t('gamesShort')}` : t('na')}</p>
                     </div>
                 </div>
 
                 <!-- 2nd -->
                 <div class="md:contents">
-                    <p class="text-sm text-gray-500 md:text-right md:font-semibold md:self-center">${t('secondWinRate')}</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 md:text-right md:font-semibold md:self-center">${t('secondWinRate')}</p>
                     <div>
-                        <p class="text-xl font-semibold text-gray-800">${stats.secondTurnWinRate}</p>
-                        <p class="text-xs text-gray-400">${stats.secondTurnTotal > 0 ? `${stats.secondTurnWins}${t('winsShort')} / ${stats.secondTurnTotal}${t('gamesShort')}` : t('na')}</p>
+                        <p class="text-xl font-semibold text-gray-800 dark:text-gray-100">${stats.secondTurnWinRate}</p>
+                        <p class="text-xs text-gray-400 dark:text-gray-500">${stats.secondTurnTotal > 0 ? `${stats.secondTurnWins}${t('winsShort')} / ${stats.secondTurnTotal}${t('gamesShort')}` : t('na')}</p>
                     </div>
                 </div>
             </div>
@@ -919,28 +944,28 @@ document.addEventListener('DOMContentLoaded', () => {
                  <div class="relative">
                     <div class="flex justify-between items-center">
                         <div class="flex items-center gap-2 min-w-0">
-                            <button id="back-to-decks" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                            <button id="back-to-decks" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
                                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
                                 ${t('back')}
                             </button>
                              <div class="relative flex-1 min-w-0 ml-2">
-                                <button id="deck-switcher-btn" class="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-200 transition-colors w-full text-left">
-                                    <h2 class="text-2xl font-bold text-gray-800 truncate flex-1 min-w-0">${t('statsFor', {name: `<span class="${classStyles[displayDeck.class].text}">${displayDeck.name}</span>`})}</h2>
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 transition-transform flex-shrink-0 ${statsDeckSwitcherVisible ? 'rotate-180' : ''}" viewBox="0 0 20 20" fill="currentColor">
+                                <button id="deck-switcher-btn" class="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700/50 transition-colors w-full text-left">
+                                    <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100 truncate flex-1 min-w-0">${t('statsFor', {name: `<span class="${classStyles[displayDeck.class].text}">${displayDeck.name}</span>`})}</h2>
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 dark:text-gray-400 transition-transform flex-shrink-0 ${statsDeckSwitcherVisible ? 'rotate-180' : ''}" viewBox="0 0 20 20" fill="currentColor">
                                         <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
                                     </svg>
                                 </button>
                                 <!-- Deck Switcher Dropdown -->
-                                <div id="deck-switcher-dropdown" class="${statsDeckSwitcherVisible ? '' : 'hidden'} absolute top-full left-0 mt-2 w-72 bg-white rounded-lg shadow-xl border z-20 overflow-hidden">
+                                <div id="deck-switcher-dropdown" class="${statsDeckSwitcherVisible ? '' : 'hidden'} absolute top-full left-0 mt-2 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-xl border dark:border-gray-700 z-20 overflow-hidden">
                                     <ul class="max-h-60 overflow-y-auto">
                                         <li>
-                                            <button data-deck-id="all" class="w-full text-left px-4 py-3 text-sm font-semibold hover:bg-blue-50 transition-colors ${isAllDecksView ? 'text-blue-600' : 'text-gray-700'}">
+                                            <button data-deck-id="all" class="w-full text-left px-4 py-3 text-sm font-semibold hover:bg-blue-50 dark:hover:bg-blue-900/40 transition-colors ${isAllDecksView ? 'text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'}">
                                                 ${t('allDecks')}
                                             </button>
                                         </li>
                                         ${state.decks.map(d => `
                                             <li>
-                                                <button data-deck-id="${d.id}" class="w-full text-left px-4 py-3 text-sm hover:bg-blue-50 transition-colors ${d.id === deckId ? 'text-blue-600 font-semibold' : 'text-gray-700'}">
+                                                <button data-deck-id="${d.id}" class="w-full text-left px-4 py-3 text-sm hover:bg-blue-50 dark:hover:bg-blue-900/40 transition-colors ${d.id === deckId ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-gray-700 dark:text-gray-300'}">
                                                     ${d.name} <span class="text-xs ${classStyles[d.class].text}">(${getTranslated(CLASS_NAMES, d.class)})</span>
                                                 </button>
                                             </li>
@@ -950,25 +975,25 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
                         </div>
                         <div class="relative">
-                           <button id="toggle-date-filter-btn" class="p-2 rounded-md text-gray-500 hover:bg-gray-200 hover:text-gray-700 transition-colors">
+                           <button id="toggle-date-filter-btn" class="p-2 rounded-md text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200 transition-colors">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                   <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                 </svg>
                            </button>
                             <!-- Date Filter Card -->
-                            <div id="date-filter-card" class="${dateFilterVisible ? '' : 'hidden'} absolute top-full right-0 mt-2 w-80 bg-white rounded-lg shadow-xl border z-20 p-4">
-                                <p class="text-sm font-semibold text-gray-700 mb-3">${t('toggleDateFilter')}</p>
+                            <div id="date-filter-card" class="${dateFilterVisible ? '' : 'hidden'} absolute top-full right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl border dark:border-gray-700 z-20 p-4">
+                                <p class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">${t('toggleDateFilter')}</p>
                                 <form id="date-filter-form" class="space-y-3">
                                     <div>
-                                        <label for="start-date" class="block text-xs font-medium text-gray-600">${t('from')}</label>
-                                        <input type="date" id="start-date" name="start-date" value="${dateFilter.start || ''}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white text-black">
+                                        <label for="start-date" class="block text-xs font-medium text-gray-600 dark:text-gray-400">${t('from')}</label>
+                                        <input type="date" id="start-date" name="start-date" value="${dateFilter.start || ''}" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white text-black">
                                     </div>
                                     <div>
-                                        <label for="end-date" class="block text-xs font-medium text-gray-600">${t('to')}</label>
-                                        <input type="date" id="end-date" name="end-date" value="${dateFilter.end || ''}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white text-black">
+                                        <label for="end-date" class="block text-xs font-medium text-gray-600 dark:text-gray-400">${t('to')}</label>
+                                        <input type="date" id="end-date" name="end-date" value="${dateFilter.end || ''}" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white text-black">
                                     </div>
                                     <div class="flex items-center justify-end gap-2 pt-2">
-                                        <button type="button" id="clear-date-filter-btn" class="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400">${t('clear')}</button>
+                                        <button type="button" id="clear-date-filter-btn" class="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-400">${t('clear')}</button>
                                         <button type="submit" class="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">${t('apply')}</button>
                                     </div>
                                 </form>
@@ -978,23 +1003,23 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     <div class="mt-2 min-h-[1.25rem]">
                         ${filterClass || (dateFilter.start || dateFilter.end) ? `
-                            <div class="flex items-center flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600">
+                            <div class="flex items-center flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600 dark:text-gray-400">
                                 ${filterClass ? `<p>${t('filterOpponent', {name: `<span class="font-semibold ${classStyles[filterClass].text}">${getTranslated(CLASS_NAMES, filterClass)}</span>`})}</p>` : ''}
-                                ${dateFilter.start || dateFilter.end ? `<p>${t('filterPeriod', {start: `<span class="font-semibold text-gray-700">${dateFilter.start || '...'}</span>`, end: `<span class="font-semibold text-gray-700">${dateFilter.end || '...'}</span>`})}</p>` : ''}
+                                ${dateFilter.start || dateFilter.end ? `<p>${t('filterPeriod', {start: `<span class="font-semibold text-gray-700 dark:text-gray-300">${dateFilter.start || '...'}</span>`, end: `<span class="font-semibold text-gray-700 dark:text-gray-300">${dateFilter.end || '...'}</span>`})}</p>` : ''}
                             </div>
                         ` : ''}
                     </div>
                 </div>
                 
                 ${displayDeck.games.length === 0 ? `
-                    <div class="text-center bg-white rounded-lg shadow-md border-2 border-dashed border-gray-300 p-12 mt-4">
-                        <h3 class="text-sm font-medium text-gray-900">${t('noGames')}</h3>
-                        <p class="mt-1 text-sm text-gray-500">${t('noGamesHint')}</p>
+                    <div class="text-center bg-white dark:bg-gray-800 rounded-lg shadow-md border-2 border-dashed border-gray-300 dark:border-gray-600 p-12 mt-4">
+                        <h3 class="text-sm font-medium text-gray-900 dark:text-gray-200">${t('noGames')}</h3>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">${t('noGamesHint')}</p>
                     </div>
                 ` : `
                     <div class="mt-4 grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
                         <!-- CARD 1: PERFORMANCE & OPPONENT OVERVIEW -->
-                        <div class="bg-white rounded-lg shadow-md p-6">
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
                             <div class="flex flex-col md:flex-row items-center justify-around gap-6">
                                 <div class="flex-shrink-0 w-full md:w-64">
                                     ${statsLayoutHTML}
@@ -1004,12 +1029,12 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </div>
                             </div>
 
-                            <div class="mt-8 border-t border-gray-200 pt-6">
+                            <div class="mt-8 border-t border-gray-200 dark:border-gray-700 pt-6">
                                  <div class="flex justify-between items-center mb-4">
-                                     <h3 class="text-base font-semibold text-gray-700">${t('opponentBreakdown')}</h3>
+                                     <h3 class="text-base font-semibold text-gray-700 dark:text-gray-200">${t('opponentBreakdown')}</h3>
                                       ${filterClass ? `<button id="clear-class-filter-btn" class="text-xs text-blue-500 hover:underline">${t('showAllClasses')}</button>` : ''}
                                 </div>
-                                <div class="grid grid-cols-3 text-xs text-gray-500 font-medium px-2 pb-1 border-b">
+                                <div class="grid grid-cols-3 text-xs text-gray-500 dark:text-gray-400 font-medium px-2 pb-1 border-b dark:border-gray-700">
                                     <span class="col-span-1">${t('opponent')}</span>
                                     <span class="text-center col-span-1">${t('playRate')}</span>
                                     <span class="text-right col-span-1">${t('winRate')}</span>
@@ -1021,11 +1046,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
 
                         <!-- CARD 2: RECENT MATCHES -->
-                        <div class="bg-white rounded-lg shadow-md p-6">
-                            <h3 class="text-lg font-semibold text-gray-700 mb-4">${t('matchHistory')} ${filterClass ? t('vs', {name: getTranslated(CLASS_NAMES, filterClass)}): ''}</h3>
-                            <div class="bg-white rounded-lg border border-gray-200">
-                                <ul id="recent-matches-list" class="max-h-[36rem] overflow-y-auto divide-y divide-gray-100">
-                                    ${recentMatchesHTML || `<li class="p-4 text-center text-gray-500">${t('noMatchesFilter')}</li>`}
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                            <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4">${t('matchHistory')} ${filterClass ? t('vs', {name: getTranslated(CLASS_NAMES, filterClass)}): ''}</h3>
+                            <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                                <ul id="recent-matches-list" class="max-h-[36rem] overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
+                                    ${recentMatchesHTML || `<li class="p-4 text-center text-gray-500 dark:text-gray-400">${t('noMatchesFilter')}</li>`}
                                 </ul>
                             </div>
                         </div>
@@ -1137,7 +1162,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Delete Deck Modal
         document.querySelector('#delete-deck-confirm-modal #delete-deck-modal-title').textContent = t('deleteDeckTitle');
         const deckToDelete = state.deckToDeleteId ? state.decks.find(d => d.id === state.deckToDeleteId) : null;
-        document.querySelector('#delete-deck-confirm-modal p.text-sm').innerHTML = t('deleteDeckConfirm', {name: `<strong id="deck-to-delete-name">${deckToDelete ? deckToDelete.name : ''}</strong>`});
+        document.querySelector('#delete-deck-confirm-modal p.text-sm').innerHTML = t('deleteDeckConfirm', {name: `<strong id="deck-to-delete-name" class="text-gray-600 dark:text-gray-300">${deckToDelete ? deckToDelete.name : ''}</strong>`});
         document.querySelector('#delete-deck-confirm-modal #confirm-delete-deck-button').textContent = t('delete');
         document.querySelector('#delete-deck-confirm-modal #cancel-delete-deck-button').textContent = t('cancel');
         
@@ -1299,5 +1324,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if(settings.language && translations[settings.language]) {
         state.language = settings.language;
     }
+    // Set theme state from settings or system preference. The class on <html> is set by the inline script in <head>.
+    if (settings.theme && ['light', 'dark'].includes(settings.theme)) {
+        state.theme = settings.theme;
+    } else {
+        state.theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    
     render();
 });
