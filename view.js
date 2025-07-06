@@ -1,5 +1,7 @@
 
 
+
+
 import { state, CLASSES, classStyles, CLASS_NAMES, TURN_NAMES, RESULT_NAMES, translations, setNewDeckClass } from './store.js';
 
 // --- DOM CACHE ---
@@ -198,7 +200,7 @@ const renderDeckList = () => {
                                 <span class="flex-shrink-0 ml-2 px-2 py-0.5 text-xs font-semibold rounded-full ${style.bg} ${style.text}">${getTranslated(CLASS_NAMES, deck.class)}</span>
                             </div>
                         `}
-                        <div class="mt-3 flex justify-between items-end text-sm">
+                        <div class="mt-3 flex justify-between items-baseline text-sm">
                             <div class="flex items-baseline gap-4">
                                 <p><span class="font-bold text-lg text-green-600">${wins}</span> <span class="text-gray-500 dark:text-gray-400">${t('wins')}</span></p>
                                 <p><span class="font-bold text-lg text-red-600">${losses}</span> <span class="text-gray-500 dark:text-gray-400">${t('losses')}</span></p>
@@ -569,7 +571,7 @@ const renderStatsView = (deckId) => {
 
         const deckInfoHTML = isAllDecksView 
             ? `<div class="flex-grow text-left px-2 min-w-0">
-                   <span class="inline-block max-w-full px-2 py-0.5 text-xs font-semibold rounded-full truncate ${classStyles[game.originalDeckClass].bg} ${classStyles[game.originalDeckClass].text}" title="${deckName}">${deckName}</span>
+                   <span class="inline-block max-w-full px-2 py-1 text-xs font-semibold rounded-full truncate ${classStyles[game.originalDeckClass].bg} ${classStyles[game.originalDeckClass].text}" title="${deckName}">${deckName}</span>
                </div>`
             : '<div class="flex-grow"></div>';
 
@@ -579,7 +581,7 @@ const renderStatsView = (deckId) => {
                     
                     <!-- Left Section: Opponent Info (Fixed Width) -->
                     <div class="flex items-center gap-3 flex-shrink-0">
-                        <span class="w-12 flex-shrink-0 text-center px-1 py-1 text-xs font-semibold rounded-full ${opponentStyle.bg} ${opponentStyle.text}" title="${getTranslated(CLASS_NAMES, game.opponentClass)}">
+                        <span class="w-14 flex-shrink-0 text-center px-2 py-1 text-xs font-semibold rounded-full ${opponentStyle.bg} ${opponentStyle.text}" title="${getTranslated(CLASS_NAMES, game.opponentClass)}">
                             ${getShortClassName(game.opponentClass)}
                         </span>
                         <div class="w-16">
