@@ -286,10 +286,10 @@ const renderAddGameView = (deckId) => {
                     ${t('back')}
                 </button>
                 <div class="flex-1 min-w-0 overflow-hidden">
-                    <h2 class="flex items-baseline justify-end text-xl font-bold text-gray-800 dark:text-gray-100" title="${t('addGameTitle', { name: deck.name })}">
+                    <h2 class="flex items-baseline justify-start text-xl font-bold text-gray-800 dark:text-gray-100" title="${t('addGameTitle', { name: deck.name })}">
                         <span class="whitespace-nowrap">${prefix}</span>
                         <span class="ml-1 ${classStyles[deck.class].text} truncate">${deck.name}</span>
-                        <span class="whitespace-nowrap">${suffix}</span>
+                        <span class="whitespace-nowrap">${suffix || ''}</span>
                     </h2>
                 </div>
             </div>
