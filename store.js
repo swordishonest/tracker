@@ -53,6 +53,9 @@ export const translations = {
         'vs': '(vs {name})', 'wentTurn': 'Went {turn}', 'matchAriaDelete': 'Delete match',
         'noMatchesFilter': 'No matches found for this filter.',
         'barChartTitle': 'Win Rate vs Opponent', 'pieChartTitle': 'Opponent Play Rate', 'toggleChartType': 'Toggle chart type',
+        'paginationResults': 'Showing <span class="font-medium">{from}</span> to <span class="font-medium">{to}</span> of <span class="font-medium">{total}</span> results',
+        'paginationPrevious': 'Previous',
+        'paginationNext': 'Next',
     },
     ja: {
         'cancel': 'キャンセル', 'delete': '削除', 'class': 'クラス', 'wins': '勝利数', 'losses': '敗北数',
@@ -85,6 +88,9 @@ export const translations = {
         'vs': ' (vs {name})', 'wentTurn': '{turn}', 'matchAriaDelete': '対戦を削除',
         'noMatchesFilter': 'このフィルターに一致する対戦はありません。',
         'barChartTitle': 'クラス別勝率', 'pieChartTitle': 'クラス別使用率', 'toggleChartType': 'グラフの種類を切り替え',
+        'paginationResults': '全<span class="font-medium">{total}</span>件中 <span class="font-medium">{from}</span>〜<span class="font-medium">{to}</span>件を表示',
+        'paginationPrevious': '前へ',
+        'paginationNext': '次へ',
     }
 };
 export const CLASS_NAMES = {
