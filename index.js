@@ -1,6 +1,6 @@
 
 
-import { state, saveDecks, saveSettings, loadDecks, loadSettings, setView, setEditingDeckId, setNewDeckClass, setDeckToDeleteId, setMatchToDelete, setFileToImport } from './store.js';
+import { state, saveDecks, saveSettings, loadDecks, loadSettings, setView, setEditingDeckId, setNewDeckClass, setDeckToDeleteId, setMatchToDelete, setFileToImport, CLASSES } from './store.js';
 import { render, openAddDeckModal, closeAddDeckModal, openDeleteDeckModal, closeDeleteDeckModal, openDeleteMatchModal, closeDeleteMatchModal, openImportModal, closeImportModal, openResetModal, closeResetModal, checkDeckFormValidity, setTheme } from './view.js';
 
 // --- DATA IMPORT/EXPORT ---
@@ -10,7 +10,32 @@ const handleExport = () => {
         return;
     }
 
-    const dataStr = JSON.stringify(state.decks, null, 2);
+    const turns = ['1st', '2nd'];
+    const results = ['Win', 'Loss'];
+
+    const exportedDecks = state.decks.map(deck => ({
+        ...deck,
+        games: deck.games.map(game => [
+            game.id,
+            game.timestamp,
+            CLASSES.indexOf(game.opponentClass),
+            turns.indexOf(game.turn),
+            results.indexOf(game.result)
+        ])
+    }));
+
+    const exportData = {
+        version: "2.0",
+        encoding: {
+            classes: CLASSES,
+            turns: turns,
+            results: results,
+            game_fields: ["id", "timestamp", "opponentClassIndex", "turnIndex", "resultIndex"]
+        },
+        decks: exportedDecks
+    };
+
+    const dataStr = JSON.stringify(exportData, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(dataBlob);
 
@@ -28,27 +53,89 @@ const handleImport = () => {
     document.getElementById('import-file-input').click();
 };
 
-const processImportFile = (file) => {
-    if (!file) return;
+const processImportFile = (file, mode) => {
+    if (!file || !mode) return;
 
     const reader = new FileReader();
     reader.onload = (e) => {
         try {
-            const importedData = JSON.parse(e.target.result);
-
-            if (!Array.isArray(importedData)) throw new Error("Data is not an array.");
+            const rawData = JSON.parse(e.target.result);
             
-            // Basic validation can be improved here
-            const isValid = importedData.every(deck => 'id' in deck && 'name' in deck && 'class' in deck && 'games' in deck);
-
-            if (!isValid) {
-                throw new Error("The imported file has an invalid data structure.");
+            if (mode === 'merge' && rawData.version !== '2.0') {
+                alert("Merging is only supported for the V2 data format. Please use a V2 backup file or choose to overwrite.");
+                return;
             }
 
-            state.decks = importedData;
+            let importedDecks;
+
+            // V2 format with encoded games
+            if (rawData.version === "2.0" && rawData.encoding && Array.isArray(rawData.decks)) {
+                const { classes, turns, results } = rawData.encoding;
+                if (!classes || !turns || !results) {
+                    throw new Error("Imported file has corrupt encoding data.");
+                }
+
+                importedDecks = rawData.decks.map(deck => ({
+                    ...deck,
+                    games: deck.games.map(gameArr => ({
+                        id: gameArr[0],
+                        timestamp: gameArr[1],
+                        opponentClass: classes[gameArr[2]],
+                        turn: turns[gameArr[3]],
+                        result: results[gameArr[4]]
+                    }))
+                }));
+            } else if (Array.isArray(rawData)) { // V1 legacy format
+                 importedDecks = rawData;
+            } else {
+                 throw new Error("Unsupported or corrupt file format.");
+            }
+            
+            // Extensive validation for the processed data
+            const isValid = Array.isArray(importedDecks) && importedDecks.every(deck =>
+                deck && typeof deck === 'object' &&
+                'id' in deck && typeof deck.id === 'string' &&
+                'name'in deck && typeof deck.name === 'string' &&
+                'class' in deck && CLASSES.includes(deck.class) &&
+                'games' in deck && Array.isArray(deck.games) &&
+                deck.games.every(game =>
+                    game && typeof game === 'object' &&
+                    'id' in game && typeof game.id === 'string' &&
+                    'timestamp' in game && typeof game.timestamp === 'number' &&
+                    'opponentClass' in game && CLASSES.includes(game.opponentClass) &&
+                    'turn' in game && ['1st', '2nd'].includes(game.turn) &&
+                    'result' in game && ['Win', 'Loss'].includes(game.result)
+                )
+            );
+
+            if (!isValid) {
+                throw new Error("The imported file contains invalid or corrupt data.");
+            }
+
+            if (mode === 'overwrite') {
+                state.decks = importedDecks;
+                alert("Data imported and overwritten successfully!");
+            } else if (mode === 'merge') {
+                const importedDecksMap = new Map(importedDecks.map(d => [d.id, d]));
+
+                const mergedDecks = state.decks.map(existingDeck => {
+                    const importedDeckMatch = importedDecksMap.get(existingDeck.id);
+                    if (importedDeckMatch) {
+                        const existingGameIds = new Set(existingDeck.games.map(g => g.id));
+                        const gamesToMerge = importedDeckMatch.games.filter(g => !existingGameIds.has(g.id));
+                        importedDecksMap.delete(existingDeck.id);
+                        return { ...existingDeck, games: [...existingDeck.games, ...gamesToMerge] };
+                    }
+                    return existingDeck;
+                });
+
+                const newDecks = Array.from(importedDecksMap.values());
+                state.decks = [...mergedDecks, ...newDecks];
+                alert("Data merged successfully!");
+            }
+
             saveDecks();
             render();
-            alert("Data imported successfully!");
 
         } catch (error) {
             console.error("Failed to import data:", error);
@@ -76,7 +163,7 @@ const handleFileSelect = (event) => {
     if (state.decks.length > 0) {
         openImportModal();
     } else {
-        processImportFile(file);
+        processImportFile(file, 'overwrite');
     }
 };
 
@@ -98,7 +185,7 @@ const handleAddDeckSubmit = (e) => {
         games: [],
     };
 
-    state.decks.unshift(newDeck);
+    state.decks = [newDeck, ...state.decks];
     saveDecks();
     closeAddDeckModal();
     render();
@@ -125,7 +212,7 @@ const handleAddGameSubmit = (e) => {
         };
 
         state.decks = state.decks.map(d =>
-            d.id === deckId ? { ...d, games: [...d.games, newGame] } : d
+            d.id === deckId ? { ...d, games: [newGame, ...d.games] } : d
         );
         saveDecks();
         
@@ -154,8 +241,12 @@ const handleGlobalClick = (e) => {
             case 'close-delete-match-modal': closeDeleteMatchModal(); break;
             case 'close-import-modal': closeImportModal(); break;
             case 'close-reset-modal': closeResetModal(); break;
-            case 'confirm-import':
-                if (state.fileToImport) processImportFile(state.fileToImport);
+            case 'confirm-overwrite-import':
+                if (state.fileToImport) processImportFile(state.fileToImport, 'overwrite');
+                closeImportModal();
+                break;
+            case 'confirm-merge-import':
+                if (state.fileToImport) processImportFile(state.fileToImport, 'merge');
                 closeImportModal();
                 break;
             case 'confirm-reset':
@@ -191,7 +282,7 @@ const handleGlobalClick = (e) => {
                 }
                 break;
             case 'stats': 
-                setView({ type: 'stats', deckId, filterClass: null, dateFilter: { start: null, end: null }, statsDeckSwitcherVisible: false, dateFilterVisible: false, chartType: state.chartType }); 
+                setView({ type: 'stats', deckId, filterClass: null, dateFilter: { start: null, end: null }, statsDeckSwitcherVisible: false, dateFilterVisible: false, chartType: state.chartType, currentPage: 1 }); 
                 render(); 
                 break;
             case 'add_game': setView({ type: 'add_game', deckId }); render(); break;
@@ -233,15 +324,15 @@ const handleGlobalClick = (e) => {
             case 'reset-all': if (state.decks.length > 0) openResetModal(); break;
             case 'filter-stats':
                 const newFilter = state.view.filterClass === filterClass ? null : filterClass;
-                setView({ ...state.view, filterClass: newFilter });
+                setView({ ...state.view, filterClass: newFilter, currentPage: 1 });
                 render();
                 break;
              case 'clear-class-filter':
-                 setView({ ...state.view, filterClass: null });
+                 setView({ ...state.view, filterClass: null, currentPage: 1 });
                  render();
                 break;
             case 'clear-date-filter':
-                setView({ ...state.view, dateFilter: { start: null, end: null }, dateFilterVisible: false });
+                setView({ ...state.view, dateFilter: { start: null, end: null }, dateFilterVisible: false, currentPage: 1 });
                 render();
                 break;
             case 'toggle-deck-switcher':
@@ -253,7 +344,7 @@ const handleGlobalClick = (e) => {
                 render();
                 break;
             case 'switch-stats-deck':
-                setView({ ...state.view, deckId: deckId, filterClass: null, statsDeckSwitcherVisible: false });
+                setView({ ...state.view, deckId: deckId, filterClass: null, statsDeckSwitcherVisible: false, currentPage: 1 });
                 render();
                 break;
             case 'toggle-chart-type':
@@ -262,6 +353,20 @@ const handleGlobalClick = (e) => {
                     state.chartType = newChartType;
                     saveSettings();
                     setView({ ...state.view, chartType: newChartType });
+                    render();
+                }
+                break;
+            case 'prev-page':
+                 if (state.view.type === 'stats' && state.view.currentPage > 1) {
+                    setView({ ...state.view, currentPage: state.view.currentPage - 1 });
+                    render();
+                 }
+                break;
+            case 'next-page':
+                if (state.view.type === 'stats') {
+                    // This check can be more sophisticated if totalPages is available here, but a simple increment is fine.
+                    // The view will disable the button if it's the last page.
+                    setView({ ...state.view, currentPage: state.view.currentPage + 1 });
                     render();
                 }
                 break;
@@ -299,7 +404,7 @@ const handleGlobalSubmit = (e) => {
     } else if (target.id === 'date-filter-form') {
         const startDate = e.target.elements['start-date'].value;
         const endDate = e.target.elements['end-date'].value;
-        setView({ ...state.view, dateFilter: { start: startDate || null, end: endDate || null }, dateFilterVisible: false });
+        setView({ ...state.view, dateFilter: { start: startDate || null, end: endDate || null }, dateFilterVisible: false, currentPage: 1 });
         render();
     }
 }

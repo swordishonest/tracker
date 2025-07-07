@@ -1,8 +1,7 @@
 
 
-
-
 import { state, CLASSES, classStyles, CLASS_NAMES, TURN_NAMES, RESULT_NAMES, translations, setNewDeckClass } from './store.js';
+import { getStatsForView } from './calculator.js';
 
 // --- DOM CACHE ---
 const appContainer = document.getElementById('app');
@@ -11,6 +10,9 @@ const deleteDeckConfirmModal = document.getElementById('delete-deck-confirm-moda
 const deleteMatchConfirmModal = document.getElementById('delete-match-confirm-modal');
 const importConfirmModal = document.getElementById('import-confirm-modal');
 const resetConfirmModal = document.getElementById('reset-confirm-modal');
+
+// --- CONSTANTS ---
+const ITEMS_PER_PAGE = 50;
 
 // --- TRANSLATION HELPERS ---
 const t = (key, replacements = {}) => {
@@ -387,75 +389,42 @@ const renderAddGameView = (deckId) => {
 };
 
 const renderStatsView = (deckId) => {
-    const { filterClass, dateFilter, statsDeckSwitcherVisible, dateFilterVisible, chartType } = state.view;
+    // --- 1. Get memoized stats from the calculator ---
+    const calculatedData = getStatsForView(state.view, state.decks, t);
 
-    let displayDeck;
-    let isAllDecksView = deckId === 'all';
-
-    if (isAllDecksView) {
-        const allGames = state.decks.flatMap(d => d.games.map(g => ({...g, originalDeckId: d.id, originalDeckClass: d.class})));
-        displayDeck = { id: 'all', name: t('allDecks'), class: 'All', games: allGames };
-    } else {
-        displayDeck = state.decks.find(d => d.id === deckId);
-    }
-
-    if (!displayDeck) {
+    if (!calculatedData) {
         appContainer.innerHTML = `<p>Deck not found</p>`;
         return;
     }
 
-    const calculateStats = (games) => {
-        const total = games.length;
-        const wins = games.filter(g => g.result === 'Win').length;
-        const losses = total - wins;
-        const firstTurnGames = games.filter(g => g.turn === '1st');
-        const firstTurnWins = firstTurnGames.filter(g => g.result === 'Win').length;
-        const secondTurnGames = games.filter(g => g.turn === '2nd');
-        const secondTurnWins = secondTurnGames.filter(g => g.result === 'Win').length;
-        const opponentDistribution = games.reduce((acc, game) => {
-            acc[game.opponentClass] = (acc[game.opponentClass] || 0) + 1;
-            return acc;
-        }, {});
-        const formatRate = (wins, total) => total > 0 ? `${((wins / total) * 100).toFixed(1)}%` : t('na');
-        return {
-            total, wins, losses, winRate: formatRate(wins, total),
-            firstTurnTotal: firstTurnGames.length, firstTurnWins, firstTurnWinRate: formatRate(firstTurnWins, firstTurnGames.length),
-            secondTurnTotal: secondTurnGames.length, secondTurnWins, secondTurnWinRate: formatRate(secondTurnWins, secondTurnGames.length),
-            opponentDistribution
-        };
-    };
+    const {
+        displayDeck,
+        stats,
+        totalStatsForPie,
+        winRateByClass,
+        sortedGames,
+        filteredDeckGamesCount
+    } = calculatedData;
     
-    let filteredDeckGames = displayDeck.games;
-    if (dateFilter && (dateFilter.start || dateFilter.end)) {
-        const start = dateFilter.start ? new Date(dateFilter.start).setHours(0, 0, 0, 0) : 0;
-        const end = dateFilter.end ? new Date(dateFilter.end).setHours(23, 59, 59, 999) : Date.now();
-        filteredDeckGames = filteredDeckGames.filter(g => g.timestamp >= start && g.timestamp <= end);
-    }
+    const { filterClass, dateFilter, statsDeckSwitcherVisible, dateFilterVisible, chartType, currentPage = 1 } = state.view;
+    const isAllDecksView = deckId === 'all';
+    
+    // --- 2. Pagination Logic ---
+    const totalGames = sortedGames.length;
+    const totalPages = Math.ceil(totalGames / ITEMS_PER_PAGE);
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    const paginatedGames = sortedGames.slice(startIndex, endIndex);
 
-    const gamesToAnalyze = filterClass ? filteredDeckGames.filter(g => g.opponentClass === filterClass) : filteredDeckGames;
-    const sortedGames = [...gamesToAnalyze].sort((a, b) => b.timestamp - a.timestamp);
-    const stats = calculateStats(gamesToAnalyze);
-    const totalStatsForPie = calculateStats(filteredDeckGames);
-    
-    const winRateByClass = CLASSES.reduce((acc, cls) => {
-        const gamesVsClass = filteredDeckGames.filter(g => g.opponentClass === cls);
-        if (gamesVsClass.length === 0) {
-            acc[cls] = t('na');
-            return acc;
-        }
-        const winsVsClass = gamesVsClass.filter(g => g.result === 'Win').length;
-        acc[cls] = `${((winsVsClass / gamesVsClass.length) * 100).toFixed(1)}%`;
-        return acc;
-    }, {});
-    
-    const renderPieChart = (opponentDistribution, totalGames, filterClass) => {
-        if (totalGames === 0) return `<div class="w-full max-w-[240px] h-[240px] flex items-center justify-center text-gray-400">${t('na')}</div>`;
+    // --- 3. Render functions for sub-components (Charts, Lists, etc.) ---
+    const renderPieChart = (opponentDistribution, totalGamesCount, filterClass) => {
+        if (totalGamesCount === 0) return `<div class="w-full max-w-[240px] h-[240px] flex items-center justify-center text-gray-400">${t('na')}</div>`;
         const radius = 110, strokeWidth = 30, circumference = 2 * Math.PI * radius, gapSize = circumference * 0.005;
         let offset = 0;
         const segments = CLASSES.map(cls => {
             const count = opponentDistribution[cls] || 0;
             if (count === 0) return '';
-            const percentage = count / totalGames;
+            const percentage = count / totalGamesCount;
             const arcLength = percentage * circumference;
             const isFiltered = filterClass && cls === filterClass;
             const isInactive = filterClass && !isFiltered;
@@ -468,12 +437,11 @@ const renderStatsView = (deckId) => {
     };
 
     const renderBarChart = (winRateByClass, filterClass) => {
-        if (filteredDeckGames.length === 0 || Object.values(winRateByClass).every(wr => wr === t('na'))) {
+        if (filteredDeckGamesCount === 0 || Object.values(winRateByClass).every(wr => wr === t('na'))) {
             return `<div class="w-full h-[240px] flex items-center justify-center text-gray-400">${t('na')}</div>`;
         }
     
-        const width = 400;
-        const height = 240;
+        const width = 400; const height = 240;
         const margin = { top: 20, right: 10, bottom: 15, left: 35 };
         const chartWidth = width - margin.left - margin.right;
         const chartHeight = height - margin.top - margin.bottom;
@@ -481,134 +449,65 @@ const renderStatsView = (deckId) => {
         const yAxisLabels = [0, 25, 50, 75, 100];
         const yAxisHTML = yAxisLabels.map(label => {
             const isFiftyPercentLine = label === 50;
-            const lineStrokeColor = isFiftyPercentLine
-                ? (document.documentElement.classList.contains('dark') ? '#9ca3af' : '#9ca3af') // gray-400
-                : (document.documentElement.classList.contains('dark') ? '#6b7280' : '#d1d5db'); // dark: gray-500, light: gray-300
-    
-            return `
-                <g transform="translate(0, ${margin.top + chartHeight - (label / 100) * chartHeight})">
-                    <line 
-                        x1="${margin.left}" 
-                        x2="${margin.left + chartWidth}" 
-                        stroke="${lineStrokeColor}" 
-                        stroke-width="1"
-                        ${isFiftyPercentLine ? 'stroke-dasharray="2 2"' : ''}>
-                    </line>
-                    <text x="${margin.left - 8}" y="4" text-anchor="end" font-size="12" class="fill-gray-500 dark:fill-gray-400">${label}%</text>
-                </g>
-            `;
+            const lineStrokeColor = isFiftyPercentLine ? (document.documentElement.classList.contains('dark') ? '#9ca3af' : '#9ca3af') : (document.documentElement.classList.contains('dark') ? '#4b5563' : '#e5e7eb');
+            return `<g transform="translate(0, ${margin.top + chartHeight - (label / 100) * chartHeight})"><line x1="${margin.left}" x2="${margin.left + chartWidth}" stroke="${lineStrokeColor}" stroke-width="1" ${isFiftyPercentLine ? 'stroke-dasharray="2 2"' : ''}></line><text x="${margin.left - 8}" y="4" text-anchor="end" font-size="12" class="fill-gray-500 dark:fill-gray-400">${label}%</text></g>`;
         }).join('');
     
         const barWidth = chartWidth / CLASSES.length;
         const barsHTML = CLASSES.map((cls, i) => {
             const wrString = winRateByClass[cls];
             if (wrString === t('na')) return '';
-            
             const wr = parseFloat(wrString);
             const barHeight = (wr / 100) * chartHeight;
             const isInactive = filterClass && filterClass !== cls;
             const style = `opacity: ${isInactive ? '0.4' : '1'};`;
-            
-            return `
-                <g class="transition-all duration-300" 
-                   transform="translate(${margin.left + i * barWidth}, 0)">
-                    <rect 
-                        x="${barWidth * 0.15}" 
-                        y="${margin.top + chartHeight - barHeight}" 
-                        width="${barWidth * 0.7}" 
-                        height="${barHeight}" 
-                        fill="${classStyles[cls].chart}" 
-                        rx="2"
-                        style="${style}">
-                        <title>${getTranslated(CLASS_NAMES, cls)}: ${wrString}</title>
-                    </rect>
-                </g>
-            `;
+            return `<g class="transition-all duration-300" transform="translate(${margin.left + i * barWidth}, 0)"><rect x="${barWidth * 0.15}" y="${margin.top + chartHeight - barHeight}" width="${barWidth * 0.7}" height="${barHeight}" fill="${classStyles[cls].chart}" rx="2" style="${style}"><title>${getTranslated(CLASS_NAMES, cls)}: ${wrString}</title></rect></g>`;
         }).join('');
     
-        return `<div class="relative w-full" aria-label="${t('barChartTitle')}">
-            <svg width="100%" viewBox="0 0 ${width} ${height}" style="aspect-ratio: ${width} / ${height}; max-height: 240px;">
-                <title>${t('barChartTitle')}</title>
-                ${yAxisHTML}
-                ${barsHTML}
-            </svg>
-        </div>`;
+        return `<div class="relative w-full" aria-label="${t('barChartTitle')}"><svg width="100%" viewBox="0 0 ${width} ${height}" style="aspect-ratio: ${width} / ${height}; max-height: 240px;"><title>${t('barChartTitle')}</title>${yAxisHTML}${barsHTML}</svg></div>`;
     };
     
     const renderChartContainer = () => {
         const chartTitle = chartType === 'bar' ? t('barChartTitle') : t('pieChartTitle');
-        const chartHTML = chartType === 'bar' 
-            ? renderBarChart(winRateByClass, filterClass)
-            : renderPieChart(totalStatsForPie.opponentDistribution, filteredDeckGames.length, filterClass);
-
+        const chartHTML = chartType === 'bar' ? renderBarChart(winRateByClass, filterClass) : renderPieChart(totalStatsForPie.opponentDistribution, filteredDeckGamesCount, filterClass);
         const wrapperClasses = chartType === 'bar' ? 'w-full' : 'inline-block';
-
-        return `
-            <div class="text-center ${wrapperClasses}">
-                <h4 class="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-2">${chartTitle}</h4>
-                <div data-action="toggle-chart-type" role="button" tabindex="0" aria-label="${t('toggleChartType')}" class="cursor-pointer p-1 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    ${chartHTML}
-                </div>
-            </div>
-        `;
+        return `<div class="text-center ${wrapperClasses}"><h4 class="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-2">${chartTitle}</h4><div data-action="toggle-chart-type" role="button" tabindex="0" aria-label="${t('toggleChartType')}" class="cursor-pointer p-1 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">${chartHTML}</div></div>`;
     };
 
     const opponentBreakdownHTML = CLASSES.map(cls => {
         const count = totalStatsForPie.opponentDistribution[cls] || 0;
-        if (count === 0 && filteredDeckGames.length > 0) return '';
-        const percentage = filteredDeckGames.length > 0 ? ((count / filteredDeckGames.length) * 100).toFixed(1) : '0.0';
+        if (count === 0 && filteredDeckGamesCount > 0) return '';
+        const percentage = filteredDeckGamesCount > 0 ? ((count / filteredDeckGamesCount) * 100).toFixed(1) : '0.0';
         const style = classStyles[cls], winRate = winRateByClass[cls], isFiltered = filterClass === cls;
         return `<button data-action="filter-stats" data-class="${cls}" class="grid grid-cols-4 w-full text-left p-2 rounded-md items-center transition-all duration-200 ${isFiltered ? `bg-blue-100 dark:bg-blue-900/40 ring-1 ring-blue-400 shadow-sm` : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'}"><span class="flex items-center gap-3 col-span-2 truncate"><span class="w-3 h-3 rounded-full flex-shrink-0" style="background-color: ${style.chart}"></span><span class="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">${getTranslated(CLASS_NAMES, cls)}</span></span><span class="text-sm text-gray-600 dark:text-gray-400 text-center col-span-1"><span class="font-semibold text-gray-800 dark:text-gray-100">${percentage}%</span></span><span class="text-sm text-gray-600 dark:text-gray-400 text-right col-span-1"><span class="font-semibold text-gray-800 dark:text-gray-100">${winRate}</span></span></button>`;
     }).join('');
 
-    const recentMatchesHTML = sortedGames.map(game => {
+    const resultTurnWidthClass = state.language === 'ja' ? 'w-12' : 'w-16';
+    const recentMatchesHTML = paginatedGames.map(game => {
         const opponentStyle = classStyles[game.opponentClass];
         const resultStyle = game.result === 'Win' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
         const date = new Date(game.timestamp).toLocaleDateString(state.language === 'ja' ? 'ja-JP' : undefined, { month: 'short', day: 'numeric' });
         
-        const deckForGame = isAllDecksView ? state.decks.find(d => d.id === game.originalDeckId) : null;
-        const deckName = deckForGame ? deckForGame.name : 'Unknown';
-
+        const deckName = isAllDecksView ? (state.decks.find(d => d.id === game.originalDeckId)?.name || 'Unknown') : '';
         const deckInfoHTML = isAllDecksView 
-            ? `<div class="flex-grow text-left px-2 min-w-0">
-                   <span class="inline-block max-w-full px-2 py-1 text-xs font-semibold rounded-full truncate ${classStyles[game.originalDeckClass].bg} ${classStyles[game.originalDeckClass].text}" title="${deckName}">${deckName}</span>
-               </div>`
+            ? `<div class="flex-grow text-left min-w-0"><span class="inline-block max-w-full px-2 py-1 text-xs font-semibold rounded-full truncate ${classStyles[game.originalDeckClass].bg} ${classStyles[game.originalDeckClass].text}" title="${deckName}">${deckName}</span></div>`
             : '<div class="flex-grow"></div>';
 
-        return `
-            <li class="p-3" data-game-id="${game.id}" data-deck-id="${game.originalDeckId || deckId}">
-                <div class="flex items-center gap-3">
-                    
-                    <!-- Left Section: Opponent Info (Fixed Width) -->
-                    <div class="flex items-center gap-3 flex-shrink-0">
-                        <span class="w-14 flex-shrink-0 text-center px-2 py-1 text-xs font-semibold rounded-full ${opponentStyle.bg} ${opponentStyle.text}" title="${getTranslated(CLASS_NAMES, game.opponentClass)}">
-                            ${getShortClassName(game.opponentClass)}
-                        </span>
-                        <div class="w-16">
-                            <p class="font-semibold ${resultStyle} truncate">${getTranslated(RESULT_NAMES, game.result)}</p>
-                            <p class="text-xs text-gray-500 dark:text-gray-400 truncate">${t('wentTurn', {turn: getTranslated(TURN_NAMES, game.turn)})}</p>
-                        </div>
-                    </div>
-
-                    <!-- Middle Section (Stretchy): Deck Name -->
-                    ${deckInfoHTML}
-
-                    <!-- Right Section: Date & Delete (Fixed Width) -->
-                    <div class="flex items-center gap-2 flex-shrink-0">
-                        <p class="text-sm text-gray-400 dark:text-gray-500 w-14 text-right">${date}</p>
-                        <button data-action="delete-match" aria-label="${t('matchAriaDelete')}" class="p-1 text-gray-400 dark:text-gray-500 rounded-full hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/50 dark:hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-red-500">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 pointer-events-none" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" /></svg>
-                        </button>
-                    </div>
-                </div>
-            </li>
-        `;
+        return `<li class="p-3" data-game-id="${game.id}" data-deck-id="${game.originalDeckId || deckId}"><div class="flex items-center gap-1"><div class="flex items-center gap-3 flex-shrink-0"><span class="w-14 flex-shrink-0 text-center px-2 py-1 text-xs font-semibold rounded-full ${opponentStyle.bg} ${opponentStyle.text}" title="${getTranslated(CLASS_NAMES, game.opponentClass)}">${getShortClassName(game.opponentClass)}</span><div class="${resultTurnWidthClass}"><p class="font-semibold ${resultStyle} truncate">${getTranslated(RESULT_NAMES, game.result)}</p><p class="text-xs text-gray-500 dark:text-gray-400 truncate">${t('wentTurn', {turn: getTranslated(TURN_NAMES, game.turn)})}</p></div></div>${deckInfoHTML}<div class="flex items-center gap-2 flex-shrink-0"><p class="text-sm text-gray-400 dark:text-gray-500 w-14 text-right">${date}</p><button data-action="delete-match" aria-label="${t('matchAriaDelete')}" class="p-1 text-gray-400 dark:text-gray-500 rounded-full hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/50 dark:hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-red-500"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 pointer-events-none" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" /></svg></button></div></div></li>`;
     }).join('');
 
-    const statsLayoutHTML = `<div class="flex justify-around items-start text-center md:grid md:grid-cols-[max-content,auto] md:gap-x-4 md:gap-y-4 md:text-left"><div class="md:contents"><p class="text-sm text-gray-500 dark:text-gray-400 md:text-right md:font-semibold md:self-center">${t('winRate')}</p><div><p class="text-xl font-bold text-gray-800 dark:text-gray-100">${stats.winRate}</p><p class="text-xs text-gray-400 dark:text-gray-500">${stats.wins}${t('winsShort')} / ${stats.losses}${t('lossesShort')}</p></div></div><div class="md:contents"><p class="text-sm text-gray-500 dark:text-gray-400 md:text-right md:font-semibold md:self-center">${t('firstWinRate')}</p><div><p class="text-lg font-semibold text-gray-800 dark:text-gray-100">${stats.firstTurnWinRate}</p><p class="text-xs text-gray-400 dark:text-gray-500">${stats.firstTurnTotal > 0 ? `${stats.firstTurnWins}${t('winsShort')} / ${stats.firstTurnTotal}${t('gamesShort')}` : t('na')}</p></div></div><div class="md:contents"><p class="text-sm text-gray-500 dark:text-gray-400 md:text-right md:font-semibold md:self-center">${t('secondWinRate')}</p><div><p class="text-lg font-semibold text-gray-800 dark:text-gray-100">${stats.secondTurnWinRate}</p><p class="text-xs text-gray-400 dark:text-gray-500">${stats.secondTurnTotal > 0 ? `${stats.secondTurnWins}${t('winsShort')} / ${stats.secondTurnTotal}${t('gamesShort')}` : t('na')}</p></div></div></div>`;
+    const paginationControlsHTML = () => {
+        if (totalPages <= 1) return '';
+        const showingFrom = totalGames > 0 ? startIndex + 1 : 0;
+        const showingTo = Math.min(endIndex, totalGames);
 
-    appContainer.innerHTML = `
-        <main class="w-full max-w-7xl mx-auto"><div class="relative"><div class="flex justify-between items-center"><div class="flex items-center gap-2 min-w-0"><button data-action="back-to-decks" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"><svg class="w-4 h-4 pointer-events-none" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>${t('back')}</button><div class="relative flex-1 min-w-0 ml-2"><button data-action="toggle-deck-switcher" id="deck-switcher-btn" class="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700/50 transition-colors w-full text-left"><h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100 truncate flex-1 min-w-0">${t('statsFor', {name: `<span class="${classStyles[displayDeck.class].text}">${displayDeck.name}</span>`})}</h2><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 dark:text-gray-400 transition-transform flex-shrink-0 ${statsDeckSwitcherVisible ? 'rotate-180' : ''}" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg></button><div id="deck-switcher-dropdown" class="${statsDeckSwitcherVisible ? '' : 'hidden'} absolute top-full left-0 mt-2 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-xl border dark:border-gray-700 z-20 overflow-hidden"><ul class="max-h-60 overflow-y-auto"><li><button data-action="switch-stats-deck" data-deck-id="all" class="w-full text-left px-4 py-3 text-sm font-semibold hover:bg-blue-50 dark:hover:bg-blue-900/40 transition-colors ${isAllDecksView ? 'text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'}">${t('allDecks')}</button></li>${state.decks.map(d => `<li><button data-action="switch-stats-deck" data-deck-id="${d.id}" class="w-full text-left px-4 py-3 text-sm hover:bg-blue-50 dark:hover:bg-blue-900/40 transition-colors ${d.id === deckId ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-gray-700 dark:text-gray-300'}">${d.name} <span class="text-xs ${classStyles[d.class].text}">(${getTranslated(CLASS_NAMES, d.class)})</span></button></li>`).join('')}</ul></div></div></div><div class="relative"><button data-action="toggle-date-filter" id="toggle-date-filter-btn" class="p-2 rounded-md text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg></button><div id="date-filter-card" class="${dateFilterVisible ? '' : 'hidden'} absolute top-full right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl border dark:border-gray-700 z-20 p-4"><p class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">${t('toggleDateFilter')}</p><form id="date-filter-form" class="space-y-3"><div><label for="start-date" class="block text-xs font-medium text-gray-600 dark:text-gray-400">${t('from')}</label><input type="date" id="start-date" name="start-date" value="${dateFilter.start || ''}" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white text-black"></div><div><label for="end-date" class="block text-xs font-medium text-gray-600 dark:text-gray-400">${t('to')}</label><input type="date" id="end-date" name="end-date" value="${dateFilter.end || ''}" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white text-black"></div><div class="flex items-center justify-end gap-2 pt-2"><button type="button" data-action="clear-date-filter" id="clear-date-filter-btn" class="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-400">${t('clear')}</button><button type="submit" class="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">${t('apply')}</button></div></form></div></div></div><div class="mt-1 min-h-[1.25rem]">${filterClass || (dateFilter.start || dateFilter.end) ? `<div class="flex items-center flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600 dark:text-gray-400">${filterClass ? `<p>${t('filterOpponent', {name: `<span class="font-semibold ${classStyles[filterClass].text}">${getTranslated(CLASS_NAMES, filterClass)}</span>`})}</p>` : ''}${dateFilter.start || dateFilter.end ? `<p>${t('filterPeriod', {start: `<span class="font-semibold text-gray-700 dark:text-gray-300">${dateFilter.start || '...'}</span>`, end: `<span class="font-semibold text-gray-700 dark:text-gray-300">${dateFilter.end || '...'}</span>`})}</p>` : ''}</div>` : ''}</div></div>${displayDeck.games.length === 0 ? `<div class="text-center bg-white dark:bg-gray-800 rounded-lg shadow-md border-2 border-dashed border-gray-300 dark:border-gray-600 p-12 mt-1"><h3 class="text-sm font-medium text-gray-900 dark:text-gray-200">${t('noGames')}</h3><p class="mt-1 text-sm text-gray-500 dark:text-gray-400">${t('noGamesHint')}</p></div>` : `<div class="mt-1 grid grid-cols-1 xl:grid-cols-2 gap-8 items-start"><div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6"><div class="flex flex-col md:flex-row items-center justify-around gap-6"><div class="flex-shrink-0 w-full md:w-60">${statsLayoutHTML}</div><div class="flex-grow flex justify-center">${renderChartContainer()}</div></div><div class="mt-6"><div class="flex justify-end items-center mb-2 h-5">${filterClass ? `<button data-action="clear-class-filter" class="text-xs text-blue-500 hover:underline">${t('showAllClasses')}</button>` : ''}</div><div class="grid grid-cols-4 text-xs text-gray-500 dark:text-gray-400 font-medium px-2 pb-1 border-b dark:border-gray-700"><span class="col-span-2">${t('opponent')}</span><span class="text-center col-span-1">${t('playRate')}</span><span class="text-right col-span-1">${t('winRate')}</span></div><div class="space-y-1 mt-2">${opponentBreakdownHTML}</div></div></div><div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6"><h3 class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4">${t('matchHistory')} ${filterClass ? t('vs', {name: getTranslated(CLASS_NAMES, filterClass)}): ''}</h3><div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"><ul id="recent-matches-list" class="max-h-[36rem] overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">${recentMatchesHTML || `<li class="p-4 text-center text-gray-500 dark:text-gray-400">${t('noMatchesFilter')}</li>`}</ul></div></div></div>`}</main>`;
+        return `<nav class="flex items-center justify-between border-t border-gray-200 dark:border-gray-700 px-4 py-3 sm:px-6"><div class="hidden sm:block"><p class="text-sm text-gray-700 dark:text-gray-400">Showing <span class="font-medium">${showingFrom}</span> to <span class="font-medium">${showingTo}</span> of <span class="font-medium">${totalGames}</span> results</p></div><div class="flex-1 flex justify-between sm:justify-end gap-2"><button data-action="prev-page" class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed" ${currentPage <= 1 ? 'disabled' : ''}>Previous</button><button data-action="next-page" class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed" ${currentPage >= totalPages ? 'disabled' : ''}>Next</button></div></nav>`;
+    };
+    
+    const statsLayoutHTML = `<div class="flex flex-wrap justify-around items-start text-center gap-y-4 md:grid md:grid-cols-[max-content,auto] md:gap-x-4 md:gap-y-3 md:text-left"><div class="md:contents"><p class="text-sm text-gray-500 dark:text-gray-400 md:text-right md:font-semibold md:self-center">${t('winRate')}</p><div><p class="text-lg font-bold text-gray-800 dark:text-gray-100">${stats.winRate}</p><p class="text-xs text-gray-400 dark:text-gray-500">${stats.wins}${t('winsShort')} / ${stats.losses}${t('lossesShort')}</p></div></div><div class="md:contents"><p class="text-sm text-gray-500 dark:text-gray-400 md:text-right md:font-semibold md:self-center">${t('firstWinRate')}</p><div><p class="text-lg font-semibold text-gray-800 dark:text-gray-100">${stats.firstTurnWinRate}</p><p class="text-xs text-gray-400 dark:text-gray-500">${stats.firstTurnTotal > 0 ? `${stats.firstTurnWins}${t('winsShort')} / ${stats.firstTurnTotal}${t('gamesShort')}` : t('na')}</p></div></div><div class="md:contents"><p class="text-sm text-gray-500 dark:text-gray-400 md:text-right md:font-semibold md:self-center">${t('secondWinRate')}</p><div><p class="text-lg font-semibold text-gray-800 dark:text-gray-100">${stats.secondTurnWinRate}</p><p class="text-xs text-gray-400 dark:text-gray-500">${stats.secondTurnTotal > 0 ? `${stats.secondTurnWins}${t('winsShort')} / ${stats.secondTurnTotal}${t('gamesShort')}` : t('na')}</p></div></div><div class="md:contents"><p class="text-sm text-gray-500 dark:text-gray-400 md:text-right md:font-semibold md:self-center">${t('longestStreak')}</p><div><p class="text-lg font-bold text-gray-800 dark:text-gray-100">${stats.longestStreak}</p><p class="text-xs text-gray-400 dark:text-gray-500">${t('wins')}</p></div></div></div>`;
+
+    // --- 4. Assemble the final HTML ---
+    appContainer.innerHTML = `<main class="w-full max-w-7xl mx-auto"><div class="relative"><div class="flex justify-between items-center"><div class="flex items-center gap-2 min-w-0"><button data-action="back-to-decks" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"><svg class="w-4 h-4 pointer-events-none" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>${t('back')}</button><div class="relative flex-1 min-w-0 ml-2"><button data-action="toggle-deck-switcher" id="deck-switcher-btn" class="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700/50 transition-colors w-full text-left"><h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100 truncate flex-1 min-w-0">${t('statsFor', {name: `<span class="${classStyles[displayDeck.class].text}">${displayDeck.name}</span>`})}</h2><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 dark:text-gray-400 transition-transform flex-shrink-0 ${statsDeckSwitcherVisible ? 'rotate-180' : ''}" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg></button><div id="deck-switcher-dropdown" class="${statsDeckSwitcherVisible ? '' : 'hidden'} absolute top-full left-0 mt-2 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-xl border dark:border-gray-700 z-20 overflow-hidden"><ul class="max-h-60 overflow-y-auto"><li><button data-action="switch-stats-deck" data-deck-id="all" class="w-full text-left px-4 py-3 text-sm font-semibold hover:bg-blue-50 dark:hover:bg-blue-900/40 transition-colors ${isAllDecksView ? 'text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'}">${t('allDecks')}</button></li>${state.decks.map(d => `<li><button data-action="switch-stats-deck" data-deck-id="${d.id}" class="w-full text-left px-4 py-3 text-sm hover:bg-blue-50 dark:hover:bg-blue-900/40 transition-colors ${d.id === deckId ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-gray-700 dark:text-gray-300'}">${d.name} <span class="text-xs ${classStyles[d.class].text}">(${getTranslated(CLASS_NAMES, d.class)})</span></button></li>`).join('')}</ul></div></div></div><div class="relative"><button data-action="toggle-date-filter" id="toggle-date-filter-btn" class="p-2 rounded-md text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg></button><div id="date-filter-card" class="${dateFilterVisible ? '' : 'hidden'} absolute top-full right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl border dark:border-gray-700 z-20 p-4"><p class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">${t('toggleDateFilter')}</p><form id="date-filter-form" class="space-y-3"><div><label for="start-date" class="block text-xs font-medium text-gray-600 dark:text-gray-400">${t('from')}</label><input type="date" id="start-date" name="start-date" value="${dateFilter.start || ''}" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white text-black"></div><div><label for="end-date" class="block text-xs font-medium text-gray-600 dark:text-gray-400">${t('to')}</label><input type="date" id="end-date" name="end-date" value="${dateFilter.end || ''}" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white text-black"></div><div class="flex items-center justify-end gap-2 pt-2"><button type="button" data-action="clear-date-filter" id="clear-date-filter-btn" class="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-400">${t('clear')}</button><button type="submit" class="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">${t('apply')}</button></div></form></div></div></div><div class="mt-1 min-h-[1.25rem]">${filterClass || (dateFilter.start || dateFilter.end) ? `<div class="flex items-center flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600 dark:text-gray-400">${filterClass ? `<p>${t('filterOpponent', {name: `<span class="font-semibold ${classStyles[filterClass].text}">${getTranslated(CLASS_NAMES, filterClass)}</span>`})}</p>` : ''}${dateFilter.start || dateFilter.end ? `<p>${t('filterPeriod', {start: `<span class="font-semibold text-gray-700 dark:text-gray-300">${dateFilter.start || '...'}</span>`, end: `<span class="font-semibold text-gray-700 dark:text-gray-300">${dateFilter.end || '...'}</span>`})}</p>` : ''}</div>` : ''}</div></div>${displayDeck.games.length === 0 ? `<div class="text-center bg-white dark:bg-gray-800 rounded-lg shadow-md border-2 border-dashed border-gray-300 dark:border-gray-600 p-12 mt-1"><h3 class="text-sm font-medium text-gray-900 dark:text-gray-200">${t('noGames')}</h3><p class="mt-1 text-sm text-gray-500 dark:text-gray-400">${t('noGamesHint')}</p></div>` : `<div class="mt-1 grid grid-cols-1 xl:grid-cols-2 gap-8 items-start"><div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6"><div class="flex flex-col md:flex-row items-center justify-around gap-6"><div class="flex-shrink-0 w-full md:w-60">${statsLayoutHTML}</div><div class="flex-grow flex justify-center">${renderChartContainer()}</div></div><div class="mt-6"><div class="flex justify-end items-center mb-2 h-5">${filterClass ? `<button data-action="clear-class-filter" class="text-xs text-blue-500 hover:underline">${t('showAllClasses')}</button>` : ''}</div><div class="grid grid-cols-4 text-xs text-gray-500 dark:text-gray-400 font-medium px-2 pb-1 border-b dark:border-gray-700"><span class="col-span-2">${t('opponent')}</span><span class="text-center col-span-1">${t('playRate')}</span><span class="text-right col-span-1">${t('winRate')}</span></div><div class="space-y-1 mt-2">${opponentBreakdownHTML}</div></div></div><div class="bg-white dark:bg-gray-800 rounded-lg shadow-md"><h3 class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4 px-6 pt-6">${t('matchHistory')} ${filterClass ? t('vs', {name: getTranslated(CLASS_NAMES, filterClass)}): ''}</h3><div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"><ul id="recent-matches-list" class="divide-y divide-gray-100 dark:divide-gray-700">${recentMatchesHTML || `<li class="p-4 text-center text-gray-500 dark:text-gray-400">${t('noMatchesFilter')}</li>`}</ul></div>${paginationControlsHTML()}</div></div>`}</main>`;
 };
 
 const renderModals = () => {
@@ -636,7 +535,8 @@ const renderModals = () => {
     // Import Modal
     document.querySelector('#import-confirm-modal #import-modal-title').textContent = t('importTitle');
     document.querySelector('#import-confirm-modal p.text-sm').textContent = t('importConfirm');
-    document.querySelector('#import-confirm-modal #confirm-import-button').textContent = t('importAndOverwrite');
+    document.querySelector('#import-confirm-modal #confirm-merge-button').textContent = t('merge');
+    document.querySelector('#import-confirm-modal #confirm-overwrite-button').textContent = t('overwrite');
     document.querySelector('#import-confirm-modal #cancel-import-button').textContent = t('cancel');
 
     // Reset Modal
