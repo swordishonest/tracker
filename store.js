@@ -46,7 +46,7 @@ export const translations = {
         'statsFor': '{name}', 'toggleDateFilter': 'Filter by Date', 'from': 'From', 'to': 'To',
         'apply': 'Apply', 'clear': 'Clear', 'filterOpponent': 'Opponent: {name}', 'filterPeriod': 'Period: {start} to {end}',
         'noGames': 'No Games Played', 'noGamesHint': 'Play some games to see your stats.',
-        'winRate': 'Win Rate', 'firstWinRate': '1st WR', 'secondWinRate': '2nd WR', 'longestStreak': 'Longest Streak',
+        'winRate': 'Win Rate', 'firstWinRate': '1st WR', 'secondWinRate': '2nd WR', 'longestStreak': 'Best Streak',
         'winsShort': 'W', 'lossesShort': 'L', 'gamesShort': 'G', 'na': 'N/A', 'games': 'Games',
         'opponentBreakdown': 'Opponent Breakdown', 'showAllClasses': '[Show All Classes]',
         'opponent': 'Opponent Class', 'playRate': 'Play Rate', 'matchHistory': 'Match History',
