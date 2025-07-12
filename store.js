@@ -21,13 +21,15 @@ export const translations = {
         // General
         'cancel': 'Cancel', 'delete': 'Delete', 'class': 'Class', 'wins': 'Wins', 'losses': 'Losses',
         'back': 'Back', 'import': 'Import', 'export': 'Export', 'reset': 'Reset',
-        'save': 'Save', 'merge': 'Merge', 'overwrite': 'Overwrite',
+        'save': 'Save', 'merge': 'Merge', 'overwrite': 'Overwrite', 'edit': 'Edit', 'close': 'Close',
         'appName': 'SVWB Win Tracker', 'appSubtitle': 'All data is saved in your browser.',
-        'allDecks': 'All Decks', 'addNewDeck': 'Add New Deck', 'addGame': 'Add Game', 'stats': 'Stats',
+        'allDecks': 'All Decks', 'allClassDecks': 'All {class} Decks', 'addNewDeck': 'Add New Deck', 'addGame': 'Add Game', 'stats': 'Stats',
         // Deck List
         'noDecks': 'No decks added yet', 'noDecksHint': 'Get started by creating a new deck.',
         'resetAll': 'Reset All', 'deckAriaDelete': 'Delete deck {name}', 'renameDeck': 'Rename deck {name}',
         'saveName': 'Save name', 'cancelEdit': 'Cancel edit', 'lastPlayed': 'Last played',
+        'notes': 'Notes', 'saveNotes': 'Save Notes', 'editNotes': 'Edit Notes', 'addNotes': 'Add Notes',
+        'notesFor': 'Notes for {name}', 'noNotesYet': 'No notes yet. Click Edit to add some!',
         // Modals
         'deckName': 'Deck Name', 'deckNamePlaceholder': 'e.g. Aggro Forest', 'saveDeck': 'Save Deck',
         'deleteDeckTitle': 'Delete Deck',
@@ -60,12 +62,14 @@ export const translations = {
     ja: {
         'cancel': 'キャンセル', 'delete': '削除', 'class': 'クラス', 'wins': '勝利数', 'losses': '敗北数',
         'back': '戻る', 'import': 'インポート', 'export': 'エクスポート', 'reset': 'リセット',
-        'save': '保存', 'merge': 'マージ', 'overwrite': '上書き',
+        'save': '保存', 'merge': 'マージ', 'overwrite': '上書き', 'edit': '編集', 'close': '閉じる',
         'appName': 'SVWB 勝敗トラッカー', 'appSubtitle': 'すべてのデータはブラウザに保存されます。',
-        'allDecks': 'すべてのデッキ', 'addNewDeck': '新規デッキ追加', 'addGame': '対戦を追加', 'stats': '戦績',
+        'allDecks': 'すべてのデッキ', 'allClassDecks': 'すべての{class}デッキ', 'addNewDeck': '新規デッキ追加', 'addGame': '対戦を追加', 'stats': '戦績',
         'noDecks': 'まだデッキがありません', 'noDecksHint': '新しいデッキを作成して始めましょう。',
         'resetAll': 'すべてリセット', 'deckAriaDelete': 'デッキ「{name}」を削除', 'renameDeck': 'デッキ「{name}」の名前を変更',
         'saveName': '名前を保存', 'cancelEdit': '編集をキャンセル', 'lastPlayed': '最終プレイ日',
+        'notes': 'メモ', 'saveNotes': 'メモを保存', 'editNotes': 'メモを編集', 'addNotes': 'メモを追加',
+        'notesFor': '{name}のメモ', 'noNotesYet': 'まだメモがありません。「編集」をクリックして追加しましょう！',
         'deckName': 'デッキ名', 'deckNamePlaceholder': '例: アグロエルフ', 'saveDeck': 'デッキを保存',
         'deleteDeckTitle': 'デッキを削除',
         'deleteDeckConfirm': 'デッキ「{name}」を削除しますか？関連するすべての対戦データが完全に削除されます。この操作は元に戻せません。',
@@ -117,7 +121,11 @@ export let state = {
     deckToDeleteId: null,
     matchToDelete: null, // { deckId: '...', gameId: '...' }
     fileToImport: null,
+    deckNotesState: { deckId: null, isEditing: false },
 };
+
+// --- HELPERS ---
+export const getTranslated = (type, key) => (type[state.language] && type[state.language][key]) || type.en[key] || key;
 
 // --- STATE MUTATORS ---
 export const setView = (newView) => {
@@ -128,6 +136,10 @@ export const setEditingDeckId = (id) => {
     if (state.view.type === 'list') {
         state.view.editingDeckId = id;
     }
+};
+
+export const setDeckNotesState = (newState) => {
+    state.deckNotesState = newState;
 };
 
 export const setNewDeckClass = (cls) => {

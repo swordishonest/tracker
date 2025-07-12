@@ -152,6 +152,21 @@
         </div>
     </div>
 
+    <!-- Deck Notes Modal -->
+    <div id="deck-notes-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4" aria-modal="true" role="dialog" aria-labelledby="deck-notes-modal-title">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-lg transform transition-all duration-300 scale-95 opacity-0 animate-fade-in-up">
+            <div class="p-6">
+                <h3 id="deck-notes-modal-title" class="flex items-baseline gap-1.5 text-lg leading-6 font-medium text-gray-900 dark:text-gray-100 mb-4"></h3>
+                <div id="deck-notes-content" class="max-w-none max-h-[60vh] overflow-y-auto text-sm text-gray-700 dark:text-gray-300">
+                    <!-- Notes content will be rendered here -->
+                </div>
+            </div>
+            <div id="deck-notes-footer" class="bg-gray-50 dark:bg-gray-700/50 px-6 py-4 flex flex-row-reverse gap-3 rounded-b-lg">
+                <!-- Buttons will be rendered here -->
+            </div>
+        </div>
+    </div>
+
     <!-- Import Confirmation Modal -->
     <div id="import-confirm-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4" aria-modal="true" role="dialog" aria-labelledby="import-modal-title">
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md transform transition-all duration-300 scale-95 opacity-0 animate-fade-in-up">

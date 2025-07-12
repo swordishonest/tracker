@@ -1,4 +1,5 @@
-import { CLASSES } from './store.js';
+
+import { CLASSES, CLASS_NAMES, getTranslated } from './store.js';
 
 const cache = new Map();
 let lastDecksRef = null;
@@ -73,7 +74,19 @@ export const getStatsForView = (view, decks, t) => {
     // --- Computation ---
     const isAllDecksView = view.deckId === 'all';
     let displayDeck;
-    if (isAllDecksView) {
+
+    if (view.deckId && view.deckId.startsWith('all-')) {
+        const targetClass = view.deckId.substring(4);
+        const classDecks = decks.filter(d => d.class === targetClass);
+        const allClassGames = classDecks.flatMap(d => d.games.map(g => ({...g, originalDeckId: d.id, originalDeckClass: d.class})));
+        const translatedClassName = getTranslated(CLASS_NAMES, targetClass);
+        displayDeck = {
+            id: view.deckId,
+            name: t('allClassDecks', { class: translatedClassName }),
+            class: targetClass,
+            games: allClassGames
+        };
+    } else if (isAllDecksView) {
         const allGames = decks.flatMap(d => d.games.map(g => ({...g, originalDeckId: d.id, originalDeckClass: d.class})));
         displayDeck = { id: 'all', name: t('allDecks'), class: 'All', games: allGames };
     } else {

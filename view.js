@@ -1,6 +1,4 @@
-
-
-import { state, CLASSES, classStyles, CLASS_NAMES, TURN_NAMES, RESULT_NAMES, translations, setNewDeckClass } from './store.js';
+import { state, CLASSES, classStyles, CLASS_NAMES, TURN_NAMES, RESULT_NAMES, translations, getTranslated, setDeckNotesState, setNewDeckClass } from './store.js';
 import { getStatsForView } from './calculator.js';
 
 // --- DOM CACHE ---
@@ -10,6 +8,7 @@ const deleteDeckConfirmModal = document.getElementById('delete-deck-confirm-moda
 const deleteMatchConfirmModal = document.getElementById('delete-match-confirm-modal');
 const importConfirmModal = document.getElementById('import-confirm-modal');
 const resetConfirmModal = document.getElementById('reset-confirm-modal');
+const deckNotesModal = document.getElementById('deck-notes-modal');
 
 // --- CONSTANTS ---
 const ITEMS_PER_PAGE = 50;
@@ -22,7 +21,6 @@ const t = (key, replacements = {}) => {
     }
     return text;
 };
-const getTranslated = (type, key) => (type[state.language] && type[state.language][key]) || type.en[key] || key;
 const getShortClassName = (cls) => {
     const translatedName = getTranslated(CLASS_NAMES, cls);
     if (state.language === 'ja') {
@@ -30,6 +28,18 @@ const getShortClassName = (cls) => {
         return translatedName.substring(0, 2);
     }
     return translatedName.substring(0, 2);
+};
+
+// --- URL PARSER ---
+const linkify = (text) => {
+    if (!text) return '';
+    const urlRegex = /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig;
+    // Sanitize text first to prevent XSS by setting textContent, then read innerHTML
+    const tempDiv = document.createElement('div');
+    tempDiv.textContent = text;
+    return tempDiv.innerHTML.replace(urlRegex, url => 
+        `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-blue-500 dark:text-blue-400 hover:underline break-all">${url}</a>`
+    );
 };
 
 // --- THEME ---
@@ -129,6 +139,17 @@ export const closeDeleteMatchModal = () => {
     deleteMatchConfirmModal.classList.add('hidden');
     deleteMatchConfirmModal.querySelector('div').classList.remove('animate-fade-in-up');
 };
+export const openNotesModal = (deckId) => {
+    setDeckNotesState({ deckId, isEditing: false });
+    renderModals();
+    deckNotesModal.classList.remove('hidden');
+    deckNotesModal.querySelector('div').classList.add('animate-fade-in-up');
+};
+export const closeNotesModal = () => {
+    setDeckNotesState({ deckId: null, isEditing: false });
+    deckNotesModal.classList.add('hidden');
+    deckNotesModal.querySelector('div').classList.remove('animate-fade-in-up');
+};
 export const openImportModal = () => {
     importConfirmModal.classList.remove('hidden');
     importConfirmModal.querySelector('div').classList.add('animate-fade-in-up');
@@ -172,36 +193,59 @@ const renderDeckList = () => {
 
             const isEditing = state.view.type === 'list' && state.view.editingDeckId === deck.id;
 
+            const nameSectionHTML = isEditing ? `
+                <div class="flex gap-2 items-center mb-1">
+                    <input 
+                        type="text" 
+                        value="${deck.name}" 
+                        data-deck-id="${deck.id}"
+                        aria-label="Deck name"
+                        class="flex-grow w-full px-2 py-1 text-lg font-bold border border-blue-400 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    >
+                    <button data-action="save-edit" data-deck-id="${deck.id}" aria-label="${t('saveName')}" class="flex-shrink-0 p-1.5 text-white bg-green-500 rounded-full hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
+                    </button>
+                     <button data-action="cancel-edit" data-deck-id="${deck.id}" aria-label="${t('cancelEdit')}" class="flex-shrink-0 p-1.5 text-white bg-red-500 rounded-full hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+            ` : `
+                <div class="flex justify-between items-start mb-1">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 truncate" title="${deck.name}">${deck.name}</h3>
+                        <button data-action="edit-deck" data-deck-id="${deck.id}" aria-label="${t('renameDeck', {name: deck.name})}" class="p-1.5 text-gray-400 dark:text-gray-500 rounded-full hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-gray-400 flex-shrink-0">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L16.732 3.732z" /></svg>
+                        </button>
+                    </div>
+                    <span class="flex-shrink-0 ml-2 px-2 py-0.5 text-xs font-semibold rounded-full ${style.bg} ${style.text}">${getTranslated(CLASS_NAMES, deck.class)}</span>
+                </div>
+            `;
+            
+            const notesIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 pointer-events-none" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg>`;
+            
+            const actionBarHTML = `
+               <div class="mt-4 border-t border-gray-200 dark:border-gray-700 pt-3 flex items-center justify-between">
+                   <div class="flex gap-2">
+                       <button data-action="add_game" data-deck-id="${deck.id}" class="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">${t('addGame')}</button>
+                       <button data-action="stats" data-deck-id="${deck.id}" class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-400">${t('stats')}</button>
+                   </div>
+                    <div class="flex items-center gap-1">
+                       <button data-action="open-notes-modal" data-deck-id="${deck.id}" aria-label="${t('notesFor', {name: deck.name})}" title="${t('notes')}" class="relative p-2 text-gray-400 dark:text-gray-500 rounded-full hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                           ${notesIcon}
+                       </button>
+                       <button data-action="open-delete-deck-modal" data-deck-id="${deck.id}" aria-label="${t('deckAriaDelete', {name: deck.name})}" title="${t('delete')}" class="p-2 text-gray-400 dark:text-gray-500 rounded-full hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/50 dark:hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 pointer-events-none" viewBox="0 0 20 20" fill="currentColor">
+                               <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" />
+                           </svg>
+                       </button>
+                   </div>
+               </div>
+            `;
+
             return `
                 <div class="w-full sm:w-80 bg-white dark:bg-gray-800 rounded-lg shadow-md border-l-4 ${style.border} p-4 flex flex-col justify-between transition-all hover:shadow-xl hover:-translate-y-px dark:hover:shadow-lg dark:hover:shadow-blue-500/10">
                     <div class="flex-grow">
-                        ${isEditing ? `
-                            <div class="flex gap-2 items-center mb-1">
-                                <input 
-                                    type="text" 
-                                    value="${deck.name}" 
-                                    data-deck-id="${deck.id}"
-                                    aria-label="Deck name"
-                                    class="flex-grow w-full px-2 py-1 text-lg font-bold border border-blue-400 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                >
-                                <button data-action="save-edit" data-deck-id="${deck.id}" aria-label="${t('saveName')}" class="flex-shrink-0 p-1.5 text-white bg-green-500 rounded-full hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
-                                </button>
-                                 <button data-action="cancel-edit" data-deck-id="${deck.id}" aria-label="${t('cancelEdit')}" class="flex-shrink-0 p-1.5 text-white bg-red-500 rounded-full hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                                </button>
-                            </div>
-                        ` : `
-                            <div class="flex justify-between items-start mb-1">
-                                <div class="flex items-center gap-2 min-w-0">
-                                    <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 truncate" title="${deck.name}">${deck.name}</h3>
-                                    <button data-action="edit-deck" data-deck-id="${deck.id}" aria-label="${t('renameDeck', {name: deck.name})}" class="p-1.5 text-gray-400 dark:text-gray-500 rounded-full hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-gray-400 flex-shrink-0">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L16.732 3.732z" /></svg>
-                                    </button>
-                                </div>
-                                <span class="flex-shrink-0 ml-2 px-2 py-0.5 text-xs font-semibold rounded-full ${style.bg} ${style.text}">${getTranslated(CLASS_NAMES, deck.class)}</span>
-                            </div>
-                        `}
+                        ${nameSectionHTML}
                         <div class="mt-3 flex justify-between items-baseline text-sm">
                             <div class="flex items-baseline gap-4">
                                 <p><span class="font-bold text-lg text-green-600">${wins}</span> <span class="text-gray-500 dark:text-gray-400">${t('wins')}</span></p>
@@ -210,17 +254,7 @@ const renderDeckList = () => {
                             ${lastPlayedDate ? `<p class="text-xs text-gray-400 dark:text-gray-500">${lastPlayedDate}</p>` : ''}
                         </div>
                     </div>
-                    <div class="mt-4 border-t border-gray-200 dark:border-gray-700 pt-3 flex items-center justify-between">
-                        <div class="flex gap-2">
-                            <button data-action="add_game" data-deck-id="${deck.id}" class="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">${t('addGame')}</button>
-                            <button data-action="stats" data-deck-id="${deck.id}" class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-400">${t('stats')}</button>
-                        </div>
-                        <button data-action="open-delete-deck-modal" data-deck-id="${deck.id}" aria-label="${t('deckAriaDelete', {name: deck.name})}" class="p-2 text-gray-400 dark:text-gray-500 rounded-full hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/50 dark:hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 pointer-events-none" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" />
-                            </svg>
-                        </button>
-                    </div>
+                    ${actionBarHTML}
                 </div>
             `;
         }).join('');
@@ -277,22 +311,25 @@ const renderAddGameView = (deckId) => {
         return;
     }
     
-    const titleWithPlaceholder = t('addGameTitle', { name: '%%DECK_NAME%%' });
-    const [prefix, suffix] = titleWithPlaceholder.split('%%DECK_NAME%%');
-
     appContainer.innerHTML = `
         <main class="w-full max-w-2xl mx-auto">
-            <div class="flex items-center justify-between gap-4 mb-4">
+            <div class="flex items-center gap-4 mb-4">
                 <button data-action="back-to-decks" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
                     <svg class="w-4 h-4 pointer-events-none" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
                     ${t('back')}
                 </button>
-                <div class="flex-1 min-w-0 overflow-hidden">
-                    <h2 class="flex items-baseline justify-start text-xl font-bold text-gray-800 dark:text-gray-100" title="${t('addGameTitle', { name: deck.name })}">
-                        <span class="whitespace-nowrap">${prefix}</span>
-                        <span class="ml-1 ${classStyles[deck.class].text} truncate">${deck.name}</span>
-                        <span class="whitespace-nowrap">${suffix || ''}</span>
-                    </h2>
+                <div class="relative flex-1 min-w-0">
+                    <button data-action="toggle-add-game-deck-switcher" id="add-game-deck-switcher-btn" class="flex w-full items-center gap-2 p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700/50 transition-colors">
+                        <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100 truncate" title="${t('addGameTitle', { name: deck.name })}">
+                            ${t('addGameTitle', {name: `<span class="${classStyles[deck.class].text}">${deck.name}</span>`})}
+                        </h2>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 dark:text-gray-400 transition-transform flex-shrink-0 ${state.view.addGameDeckSwitcherVisible ? 'rotate-180' : ''}" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                    </button>
+                    <div id="add-game-deck-switcher-dropdown" class="${state.view.addGameDeckSwitcherVisible ? '' : 'hidden'} absolute top-full left-0 mt-2 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-xl border dark:border-gray-700 z-20 overflow-hidden">
+                        <ul class="max-h-60 overflow-y-auto">
+                            ${state.decks.map(d => `<li><button data-action="switch-add-game-deck" data-deck-id="${d.id}" class="w-full text-left px-4 py-3 text-sm hover:bg-blue-50 dark:hover:bg-blue-900/40 transition-colors ${d.id === deck.id ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-gray-700 dark:text-gray-300'}">${d.name} <span class="text-xs ${classStyles[d.class].text}">(${getTranslated(CLASS_NAMES, d.class)})</span></button></li>`).join('')}
+                        </ul>
+                    </div>
                 </div>
             </div>
             <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 md:p-8">
@@ -488,8 +525,8 @@ const renderStatsView = (deckId) => {
         const resultStyle = game.result === 'Win' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
         const date = new Date(game.timestamp).toLocaleDateString(state.language === 'ja' ? 'ja-JP' : undefined, { month: 'short', day: 'numeric' });
         
-        const deckName = isAllDecksView ? (state.decks.find(d => d.id === game.originalDeckId)?.name || 'Unknown') : '';
-        const deckInfoHTML = isAllDecksView 
+        const deckName = (isAllDecksView || deckId.startsWith('all-')) ? (state.decks.find(d => d.id === game.originalDeckId)?.name || 'Unknown') : '';
+        const deckInfoHTML = (isAllDecksView || deckId.startsWith('all-'))
             ? `<div class="flex-grow text-left min-w-0"><span class="inline-block max-w-full px-2 py-1 text-xs font-semibold rounded-full truncate ${classStyles[game.originalDeckClass].bg} ${classStyles[game.originalDeckClass].text}" title="${deckName}">${deckName}</span></div>`
             : '<div class="flex-grow"></div>';
 
@@ -507,7 +544,7 @@ const renderStatsView = (deckId) => {
     const statsLayoutHTML = `<div class="flex flex-wrap justify-around items-start text-center gap-y-4 md:grid md:grid-cols-[max-content,auto] md:gap-x-4 md:gap-y-3 md:text-left"><div class="md:contents"><p class="text-sm text-gray-500 dark:text-gray-400 md:text-right md:font-semibold md:self-center">${t('winRate')}</p><div><p class="text-lg font-bold text-gray-800 dark:text-gray-100">${stats.winRate}</p><p class="text-xs text-gray-400 dark:text-gray-500">${stats.wins}${t('winsShort')} / ${stats.losses}${t('lossesShort')}</p></div></div><div class="md:contents"><p class="text-sm text-gray-500 dark:text-gray-400 md:text-right md:font-semibold md:self-center">${t('firstWinRate')}</p><div><p class="text-lg font-semibold text-gray-800 dark:text-gray-100">${stats.firstTurnWinRate}</p><p class="text-xs text-gray-400 dark:text-gray-500">${stats.firstTurnTotal > 0 ? `${stats.firstTurnWins}${t('winsShort')} / ${stats.firstTurnTotal}${t('gamesShort')}` : t('na')}</p></div></div><div class="md:contents"><p class="text-sm text-gray-500 dark:text-gray-400 md:text-right md:font-semibold md:self-center">${t('secondWinRate')}</p><div><p class="text-lg font-semibold text-gray-800 dark:text-gray-100">${stats.secondTurnWinRate}</p><p class="text-xs text-gray-400 dark:text-gray-500">${stats.secondTurnTotal > 0 ? `${stats.secondTurnWins}${t('winsShort')} / ${stats.secondTurnTotal}${t('gamesShort')}` : t('na')}</p></div></div><div class="md:contents"><p class="text-sm text-gray-500 dark:text-gray-400 md:text-right md:font-semibold md:self-center">${t('longestStreak')}</p><div><p class="text-lg font-bold text-gray-800 dark:text-gray-100">${stats.longestStreak}</p><p class="text-xs text-gray-400 dark:text-gray-500">${t('wins')}</p></div></div></div>`;
 
     // --- 4. Assemble the final HTML ---
-    appContainer.innerHTML = `<main class="w-full max-w-7xl mx-auto"><div class="relative"><div class="flex justify-between items-center"><div class="flex items-center gap-2 min-w-0"><button data-action="back-to-decks" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"><svg class="w-4 h-4 pointer-events-none" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>${t('back')}</button><div class="relative flex-1 min-w-0 ml-2"><button data-action="toggle-deck-switcher" id="deck-switcher-btn" class="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700/50 transition-colors w-full text-left"><h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100 truncate flex-1 min-w-0">${t('statsFor', {name: `<span class="${classStyles[displayDeck.class].text}">${displayDeck.name}</span>`})}</h2><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 dark:text-gray-400 transition-transform flex-shrink-0 ${statsDeckSwitcherVisible ? 'rotate-180' : ''}" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg></button><div id="deck-switcher-dropdown" class="${statsDeckSwitcherVisible ? '' : 'hidden'} absolute top-full left-0 mt-2 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-xl border dark:border-gray-700 z-20 overflow-hidden"><ul class="max-h-60 overflow-y-auto"><li><button data-action="switch-stats-deck" data-deck-id="all" class="w-full text-left px-4 py-3 text-sm font-semibold hover:bg-blue-50 dark:hover:bg-blue-900/40 transition-colors ${isAllDecksView ? 'text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'}">${t('allDecks')}</button></li>${state.decks.map(d => `<li><button data-action="switch-stats-deck" data-deck-id="${d.id}" class="w-full text-left px-4 py-3 text-sm hover:bg-blue-50 dark:hover:bg-blue-900/40 transition-colors ${d.id === deckId ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-gray-700 dark:text-gray-300'}">${d.name} <span class="text-xs ${classStyles[d.class].text}">(${getTranslated(CLASS_NAMES, d.class)})</span></button></li>`).join('')}</ul></div></div></div><div class="relative"><button data-action="toggle-date-filter" id="toggle-date-filter-btn" class="p-2 rounded-md text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg></button><div id="date-filter-card" class="${dateFilterVisible ? '' : 'hidden'} absolute top-full right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl border dark:border-gray-700 z-20 p-4"><p class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">${t('toggleDateFilter')}</p><form id="date-filter-form" class="space-y-3"><div><label for="start-date" class="block text-xs font-medium text-gray-600 dark:text-gray-400">${t('from')}</label><input type="date" id="start-date" name="start-date" value="${dateFilter.start || ''}" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white text-black"></div><div><label for="end-date" class="block text-xs font-medium text-gray-600 dark:text-gray-400">${t('to')}</label><input type="date" id="end-date" name="end-date" value="${dateFilter.end || ''}" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white text-black"></div><div class="flex items-center justify-end gap-2 pt-2"><button type="button" data-action="clear-date-filter" id="clear-date-filter-btn" class="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-400">${t('clear')}</button><button type="submit" class="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">${t('apply')}</button></div></form></div></div></div><div class="mt-1 min-h-[1.25rem]">${filterClass || (dateFilter.start || dateFilter.end) ? `<div class="flex items-center flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600 dark:text-gray-400">${filterClass ? `<p>${t('filterOpponent', {name: `<span class="font-semibold ${classStyles[filterClass].text}">${getTranslated(CLASS_NAMES, filterClass)}</span>`})}</p>` : ''}${dateFilter.start || dateFilter.end ? `<p>${t('filterPeriod', {start: `<span class="font-semibold text-gray-700 dark:text-gray-300">${dateFilter.start || '...'}</span>`, end: `<span class="font-semibold text-gray-700 dark:text-gray-300">${dateFilter.end || '...'}</span>`})}</p>` : ''}</div>` : ''}</div></div>${displayDeck.games.length === 0 ? `<div class="text-center bg-white dark:bg-gray-800 rounded-lg shadow-md border-2 border-dashed border-gray-300 dark:border-gray-600 p-12 mt-1"><h3 class="text-sm font-medium text-gray-900 dark:text-gray-200">${t('noGames')}</h3><p class="mt-1 text-sm text-gray-500 dark:text-gray-400">${t('noGamesHint')}</p></div>` : `<div class="mt-1 grid grid-cols-1 xl:grid-cols-2 gap-8 items-start"><div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6"><div class="flex flex-col md:flex-row items-center justify-around gap-6"><div class="flex-shrink-0 w-full md:w-60">${statsLayoutHTML}</div><div class="flex-grow flex justify-center">${renderChartContainer()}</div></div><div class="mt-6"><div class="flex justify-end items-center mb-2 h-5">${filterClass ? `<button data-action="clear-class-filter" class="text-xs text-blue-500 hover:underline">${t('showAllClasses')}</button>` : ''}</div><div class="grid grid-cols-4 text-xs text-gray-500 dark:text-gray-400 font-medium px-2 pb-1 border-b dark:border-gray-700"><span class="col-span-2">${t('opponent')}</span><span class="text-center col-span-1">${t('playRate')}</span><span class="text-right col-span-1">${t('winRate')}</span></div><div class="space-y-1 mt-2">${opponentBreakdownHTML}</div></div></div><div class="bg-white dark:bg-gray-800 rounded-lg shadow-md"><h3 class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4 px-6 pt-6">${t('matchHistory')} ${filterClass ? t('vs', {name: getTranslated(CLASS_NAMES, filterClass)}): ''}</h3><div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"><ul id="recent-matches-list" class="divide-y divide-gray-100 dark:divide-gray-700">${recentMatchesHTML || `<li class="p-4 text-center text-gray-500 dark:text-gray-400">${t('noMatchesFilter')}</li>`}</ul></div>${paginationControlsHTML()}</div></div>`}</main>`;
+    appContainer.innerHTML = `<main class="w-full max-w-7xl mx-auto"><div class="relative"><div class="flex justify-between items-center"><div class="flex items-center gap-2 min-w-0"><button data-action="back-to-decks" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"><svg class="w-4 h-4 pointer-events-none" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>${t('back')}</button><div class="relative flex-1 min-w-0 ml-2"><button data-action="toggle-deck-switcher" id="deck-switcher-btn" class="flex w-full items-center gap-2 p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700/50 transition-colors"><h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100 truncate" title="${displayDeck.name}">${t('statsFor', {name: `<span class="${classStyles[displayDeck.class].text}">${displayDeck.name}</span>`})}</h2><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 dark:text-gray-400 transition-transform flex-shrink-0 ${statsDeckSwitcherVisible ? 'rotate-180' : ''}" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg></button><div id="deck-switcher-dropdown" class="${statsDeckSwitcherVisible ? '' : 'hidden'} absolute top-full left-0 mt-2 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-xl border dark:border-gray-700 z-20 overflow-hidden"><ul class="max-h-80 overflow-y-auto"><li><button data-action="switch-stats-deck" data-deck-id="all" class="w-full text-left px-4 py-3 text-sm font-semibold hover:bg-blue-50 dark:hover:bg-blue-900/40 transition-colors ${isAllDecksView ? 'text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'}">${t('allDecks')}</button></li>${CLASSES.map(cls => { const isSelected = deckId === `all-${cls}`; const translatedClassName = getTranslated(CLASS_NAMES, cls); const coloredTranslatedClassName = `<span class="${classStyles[cls].text}">${translatedClassName}</span>`; return `<li><button data-action="switch-stats-deck" data-deck-id="all-${cls}" class="w-full text-left px-4 py-3 text-sm hover:bg-blue-50 dark:hover:bg-blue-900/40 transition-colors ${isSelected ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-gray-700 dark:text-gray-300'}">${t('allClassDecks', {class: coloredTranslatedClassName})}</button></li>`; }).join('')}${state.decks.length > 0 ? `<li class="border-t border-gray-200 dark:border-gray-700"></li>` : ''}${state.decks.map(d => `<li><button data-action="switch-stats-deck" data-deck-id="${d.id}" class="w-full text-left px-4 py-3 text-sm hover:bg-blue-50 dark:hover:bg-blue-900/40 transition-colors ${d.id === deckId ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-gray-700 dark:text-gray-300'}">${d.name} <span class="text-xs ${classStyles[d.class].text}">(${getTranslated(CLASS_NAMES, d.class)})</span></button></li>`).join('')}</ul></div></div></div><div class="relative"><button data-action="toggle-date-filter" id="toggle-date-filter-btn" class="p-2 rounded-md text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg></button><div id="date-filter-card" class="${dateFilterVisible ? '' : 'hidden'} absolute top-full right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl border dark:border-gray-700 z-20 p-4"><p class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">${t('toggleDateFilter')}</p><form id="date-filter-form" class="space-y-3"><div><label for="start-date" class="block text-xs font-medium text-gray-600 dark:text-gray-400">${t('from')}</label><input type="date" id="start-date" name="start-date" value="${dateFilter.start || ''}" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white text-black"></div><div><label for="end-date" class="block text-xs font-medium text-gray-600 dark:text-gray-400">${t('to')}</label><input type="date" id="end-date" name="end-date" value="${dateFilter.end || ''}" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white text-black"></div><div class="flex items-center justify-end gap-2 pt-2"><button type="button" data-action="clear-date-filter" id="clear-date-filter-btn" class="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-400">${t('clear')}</button><button type="submit" class="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">${t('apply')}</button></div></form></div></div></div><div class="mt-1 min-h-[1.25rem]">${filterClass || (dateFilter.start || dateFilter.end) ? `<div class="flex items-center flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600 dark:text-gray-400">${filterClass ? `<p>${t('filterOpponent', {name: `<span class="font-semibold ${classStyles[filterClass].text}">${getTranslated(CLASS_NAMES, filterClass)}</span>`})}</p>` : ''}${dateFilter.start || dateFilter.end ? `<p>${t('filterPeriod', {start: `<span class="font-semibold text-gray-700 dark:text-gray-300">${dateFilter.start || '...'}</span>`, end: `<span class="font-semibold text-gray-700 dark:text-gray-300">${dateFilter.end || '...'}</span>`})}</p>` : ''}</div>` : ''}</div></div>${displayDeck.games.length === 0 ? `<div class="text-center bg-white dark:bg-gray-800 rounded-lg shadow-md border-2 border-dashed border-gray-300 dark:border-gray-600 p-12 mt-1"><h3 class="text-sm font-medium text-gray-900 dark:text-gray-200">${t('noGames')}</h3><p class="mt-1 text-sm text-gray-500 dark:text-gray-400">${t('noGamesHint')}</p></div>` : `<div class="mt-1 grid grid-cols-1 xl:grid-cols-2 gap-8 items-start"><div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6"><div class="flex flex-col md:flex-row items-center justify-around gap-6"><div class="flex-shrink-0 w-full md:w-60">${statsLayoutHTML}</div><div class="flex-grow flex justify-center">${renderChartContainer()}</div></div><div class="mt-6"><div class="flex justify-end items-center mb-2 h-5">${filterClass ? `<button data-action="clear-class-filter" class="text-xs text-blue-500 hover:underline">${t('showAllClasses')}</button>` : ''}</div><div class="grid grid-cols-4 text-xs text-gray-500 dark:text-gray-400 font-medium px-2 pb-1 border-b dark:border-gray-700"><span class="col-span-2">${t('opponent')}</span><span class="text-center col-span-1">${t('playRate')}</span><span class="text-right col-span-1">${t('winRate')}</span></div><div class="space-y-1 mt-2">${opponentBreakdownHTML}</div></div></div><div class="bg-white dark:bg-gray-800 rounded-lg shadow-md"><h3 class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4 px-6 pt-6">${t('matchHistory')} ${filterClass ? t('vs', {name: getTranslated(CLASS_NAMES, filterClass)}): ''}</h3><div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"><ul id="recent-matches-list" class="divide-y divide-gray-100 dark:divide-gray-700">${recentMatchesHTML || `<li class="p-4 text-center text-gray-500 dark:text-gray-400">${t('noMatchesFilter')}</li>`}</ul></div>${paginationControlsHTML()}</div></div>`}</main>`;
 };
 
 const renderModals = () => {
@@ -522,7 +559,8 @@ const renderModals = () => {
     // Delete Deck Modal
     document.querySelector('#delete-deck-confirm-modal #delete-deck-modal-title').textContent = t('deleteDeckTitle');
     const deckToDelete = state.deckToDeleteId ? state.decks.find(d => d.id === state.deckToDeleteId) : null;
-    document.querySelector('#delete-deck-confirm-modal p.text-sm').innerHTML = t('deleteDeckConfirm', {name: `<strong id="deck-to-delete-name" class="text-gray-600 dark:text-gray-300">${deckToDelete ? deckToDelete.name : ''}</strong>`});
+    const deckNameToDelete = deckToDelete ? deckToDelete.name : '';
+    document.querySelector('#delete-deck-confirm-modal p.text-sm').innerHTML = t('deleteDeckConfirm', {name: `<strong id="deck-to-delete-name" class="font-semibold text-gray-600 dark:text-gray-300 inline-block max-w-full sm:max-w-xs truncate align-bottom" title="${deckNameToDelete}">${deckNameToDelete}</strong>`});
     document.querySelector('#delete-deck-confirm-modal #confirm-delete-deck-button').textContent = t('delete');
     document.querySelector('#delete-deck-confirm-modal #cancel-delete-deck-button').textContent = t('cancel');
     
@@ -544,6 +582,49 @@ const renderModals = () => {
     document.querySelector('#reset-confirm-modal p.text-sm').textContent = t('resetConfirm');
     document.querySelector('#reset-confirm-modal #confirm-reset-button').textContent = t('reset');
     document.querySelector('#reset-confirm-modal #cancel-reset-button').textContent = t('cancel');
+
+    // Deck Notes Modal
+    const { deckId, isEditing } = state.deckNotesState;
+    if (deckId) {
+        const deck = state.decks.find(d => d.id === deckId);
+        if (deck) {
+            const titleEl = deckNotesModal.querySelector('#deck-notes-modal-title');
+            const contentEl = deckNotesModal.querySelector('#deck-notes-content');
+            const footerEl = deckNotesModal.querySelector('#deck-notes-footer');
+
+            const deckNameHTML = `<span class="${classStyles[deck.class].text} font-bold truncate shrink" title="${deck.name}">${deck.name}</span>`;
+            titleEl.innerHTML = t('notesFor', { name: deckNameHTML });
+            
+            if (isEditing) {
+                contentEl.innerHTML = `
+                    <textarea
+                        id="deck-notes-editor"
+                        class="w-full h-64 p-2 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    >${deck.notes || ''}</textarea>
+                `;
+                setTimeout(() => document.getElementById('deck-notes-editor')?.focus(), 0);
+
+                footerEl.innerHTML = `
+                    <button type="button" data-action="save-deck-notes" class="inline-flex justify-center w-full sm:w-auto rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        ${t('saveNotes')}
+                    </button>
+                    <button type="button" data-action="cancel-deck-notes-edit" class="inline-flex justify-center w-full sm:w-auto rounded-md border border-gray-300 dark:border-gray-500 shadow-sm px-4 py-2 bg-white dark:bg-gray-600 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        ${t('cancel')}
+                    </button>
+                `;
+            } else {
+                contentEl.innerHTML = `<div class="whitespace-pre-wrap break-words">${linkify(deck.notes || '') || `<span class="text-gray-500 dark:text-gray-400">${t('noNotesYet')}</span>`}</div>`;
+                footerEl.innerHTML = `
+                    <button type="button" data-action="edit-deck-notes" class="inline-flex justify-center w-full sm:w-auto rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        ${t('edit')}
+                    </button>
+                    <button type="button" data-action="close-notes-modal" class="inline-flex justify-center w-full sm:w-auto rounded-md border border-gray-300 dark:border-gray-500 shadow-sm px-4 py-2 bg-white dark:bg-gray-600 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        ${t('close')}
+                    </button>
+                `;
+            }
+        }
+    }
 };
 
 

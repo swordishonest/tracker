@@ -1,7 +1,11 @@
 
 
-import { state, saveDecks, saveSettings, loadDecks, loadSettings, setView, setEditingDeckId, setNewDeckClass, setDeckToDeleteId, setMatchToDelete, setFileToImport, CLASSES } from './store.js';
-import { render, openAddDeckModal, closeAddDeckModal, openDeleteDeckModal, closeDeleteDeckModal, openDeleteMatchModal, closeDeleteMatchModal, openImportModal, closeImportModal, openResetModal, closeResetModal, checkDeckFormValidity, setTheme } from './view.js';
+
+
+
+
+import { state, saveDecks, saveSettings, loadDecks, loadSettings, setView, setEditingDeckId, setDeckNotesState, setNewDeckClass, setDeckToDeleteId, setMatchToDelete, setFileToImport, CLASSES } from './store.js';
+import { render, openAddDeckModal, closeAddDeckModal, openDeleteDeckModal, closeDeleteDeckModal, openDeleteMatchModal, closeDeleteMatchModal, openNotesModal, closeNotesModal, openImportModal, closeImportModal, openResetModal, closeResetModal, checkDeckFormValidity, setTheme } from './view.js';
 
 // --- DATA IMPORT/EXPORT ---
 const handleExport = () => {
@@ -86,7 +90,7 @@ const processImportFile = (file, mode) => {
                     }))
                 }));
             } else if (Array.isArray(rawData)) { // V1 legacy format
-                 importedDecks = rawData;
+                 importedDecks = rawData.map(deck => ({ ...deck, notes: deck.notes || '' }));
             } else {
                  throw new Error("Unsupported or corrupt file format.");
             }
@@ -97,6 +101,7 @@ const processImportFile = (file, mode) => {
                 'id' in deck && typeof deck.id === 'string' &&
                 'name'in deck && typeof deck.name === 'string' &&
                 'class' in deck && CLASSES.includes(deck.class) &&
+                (!('notes' in deck) || typeof deck.notes === 'string') &&
                 'games' in deck && Array.isArray(deck.games) &&
                 deck.games.every(game =>
                     game && typeof game === 'object' &&
@@ -124,7 +129,18 @@ const processImportFile = (file, mode) => {
                         const existingGameIds = new Set(existingDeck.games.map(g => g.id));
                         const gamesToMerge = importedDeckMatch.games.filter(g => !existingGameIds.has(g.id));
                         importedDecksMap.delete(existingDeck.id);
-                        return { ...existingDeck, games: [...existingDeck.games, ...gamesToMerge] };
+
+                        // If the imported deck has a 'notes' field, it overwrites the existing one.
+                        // Otherwise, the existing notes are preserved.
+                        const newNotes = 'notes' in importedDeckMatch
+                            ? importedDeckMatch.notes
+                            : existingDeck.notes;
+                        
+                        return {
+                            ...existingDeck,
+                            games: [...existingDeck.games, ...gamesToMerge],
+                            notes: newNotes || '' // Ensure notes is always a string.
+                        };
                     }
                     return existingDeck;
                 });
@@ -183,6 +199,7 @@ const handleAddDeckSubmit = (e) => {
         name: deckName,
         class: state.newDeckClass,
         games: [],
+        notes: '',
     };
 
     state.decks = [newDeck, ...state.decks];
@@ -239,6 +256,8 @@ const handleGlobalClick = (e) => {
             case 'open-delete-deck-modal': openDeleteDeckModal(deckId); break;
             case 'close-delete-deck-modal': closeDeleteDeckModal(); break;
             case 'close-delete-match-modal': closeDeleteMatchModal(); break;
+            case 'open-notes-modal': openNotesModal(deckId); break;
+            case 'close-notes-modal': closeNotesModal(); break;
             case 'close-import-modal': closeImportModal(); break;
             case 'close-reset-modal': closeResetModal(); break;
             case 'confirm-overwrite-import':
@@ -285,7 +304,7 @@ const handleGlobalClick = (e) => {
                 setView({ type: 'stats', deckId, filterClass: null, dateFilter: { start: null, end: null }, statsDeckSwitcherVisible: false, dateFilterVisible: false, chartType: state.chartType, currentPage: 1 }); 
                 render(); 
                 break;
-            case 'add_game': setView({ type: 'add_game', deckId }); render(); break;
+            case 'add_game': setView({ type: 'add_game', deckId, addGameDeckSwitcherVisible: false }); render(); break;
             case 'edit-deck': setEditingDeckId(deckId); render(); break;
             case 'cancel-edit': setEditingDeckId(null); render(); break;
             case 'save-edit':
@@ -298,6 +317,24 @@ const handleGlobalClick = (e) => {
                     }
                 }
                 setEditingDeckId(null);
+                render();
+                break;
+            case 'edit-deck-notes':
+                setDeckNotesState({ deckId: state.deckNotesState.deckId, isEditing: true });
+                render();
+                break;
+            case 'cancel-deck-notes-edit':
+                setDeckNotesState({ deckId: state.deckNotesState.deckId, isEditing: false });
+                render();
+                break;
+            case 'save-deck-notes':
+                const textarea = document.querySelector('#deck-notes-modal textarea');
+                if (textarea) {
+                    const deckIdToSave = state.deckNotesState.deckId;
+                    state.decks = state.decks.map(d => d.id === deckIdToSave ? { ...d, notes: textarea.value.trim() } : d);
+                    saveDecks();
+                }
+                closeNotesModal();
                 render();
                 break;
             case 'delete-match':
@@ -347,6 +384,18 @@ const handleGlobalClick = (e) => {
                 setView({ ...state.view, deckId: deckId, filterClass: null, statsDeckSwitcherVisible: false, currentPage: 1 });
                 render();
                 break;
+            case 'switch-add-game-deck':
+                 if (state.view.type === 'add_game') {
+                    setView({ ...state.view, deckId: deckId, addGameDeckSwitcherVisible: false });
+                    render();
+                }
+                break;
+            case 'toggle-add-game-deck-switcher':
+                if (state.view.type === 'add_game') {
+                    setView({ ...state.view, addGameDeckSwitcherVisible: !state.view.addGameDeckSwitcherVisible });
+                    render();
+                }
+                break;
             case 'toggle-chart-type':
                 if (state.view.type === 'stats') {
                     const newChartType = state.view.chartType === 'pie' ? 'bar' : 'pie';
@@ -383,6 +432,13 @@ const handleGlobalClick = (e) => {
                 setView({ ...state.view, statsDeckSwitcherVisible: false, dateFilterVisible: false });
                 render();
             }
+        } else if (state.view.type === 'add_game' && state.view.addGameDeckSwitcherVisible) {
+            const deckSwitcher = document.getElementById('add-game-deck-switcher-dropdown');
+            const deckSwitcherBtn = document.getElementById('add-game-deck-switcher-btn');
+            if (!deckSwitcherBtn?.contains(target) && !deckSwitcher?.contains(target)) {
+                setView({ ...state.view, addGameDeckSwitcherVisible: false });
+                render();
+            }
         }
     }
 };
@@ -415,6 +471,7 @@ const handleGlobalKeyDown = (e) => {
         if (!document.getElementById('add-deck-modal').classList.contains('hidden')) closeAddDeckModal();
         else if (!document.getElementById('delete-deck-confirm-modal').classList.contains('hidden')) closeDeleteDeckModal();
         else if (!document.getElementById('delete-match-confirm-modal').classList.contains('hidden')) closeDeleteMatchModal();
+        else if (!document.getElementById('deck-notes-modal').classList.contains('hidden')) closeNotesModal();
         else if (!document.getElementById('import-confirm-modal').classList.contains('hidden')) closeImportModal();
         else if (!document.getElementById('reset-confirm-modal').classList.contains('hidden')) closeResetModal();
         else if (state.view.type === 'add_game' || state.view.type === 'stats') setView({ type: 'list', editingDeckId: null }), render();
