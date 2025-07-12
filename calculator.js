@@ -1,4 +1,5 @@
 
+
 import { CLASSES, CLASS_NAMES, getTranslated } from './store.js';
 
 const cache = new Map();
@@ -60,13 +61,13 @@ const processGames = (games) => {
     return stats;
 };
 
-export const getStatsForView = (view, decks, t) => {
+export const getStatsForView = (view, decks, t, language) => {
     if (lastDecksRef !== decks) {
         cache.clear();
         lastDecksRef = decks;
     }
 
-    const cacheKey = JSON.stringify(view);
+    const cacheKey = JSON.stringify({ ...view, language });
     if (cache.has(cacheKey)) {
         return cache.get(cacheKey);
     }

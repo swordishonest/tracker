@@ -427,7 +427,7 @@ const renderAddGameView = (deckId) => {
 
 const renderStatsView = (deckId) => {
     // --- 1. Get memoized stats from the calculator ---
-    const calculatedData = getStatsForView(state.view, state.decks, t);
+    const calculatedData = getStatsForView(state.view, state.decks, t, state.language);
 
     if (!calculatedData) {
         appContainer.innerHTML = `<p>Deck not found</p>`;
