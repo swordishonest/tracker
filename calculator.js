@@ -1,9 +1,8 @@
-
-
 import { CLASSES, CLASS_NAMES, getTranslated } from './store.js';
 
 const cache = new Map();
 let lastDecksRef = null;
+let lastTagsRef = null;
 
 const createEmptyStats = () => ({
     total: 0,
@@ -61,10 +60,11 @@ const processGames = (games) => {
     return stats;
 };
 
-export const getStatsForView = (view, decks, t, language) => {
-    if (lastDecksRef !== decks) {
+export const getStatsForView = (view, decks, tags, t, language) => {
+    if (lastDecksRef !== decks || lastTagsRef !== tags) {
         cache.clear();
         lastDecksRef = decks;
+        lastTagsRef = tags;
     }
 
     const cacheKey = JSON.stringify({ ...view, language });
@@ -97,12 +97,32 @@ export const getStatsForView = (view, decks, t, language) => {
     if (!displayDeck) return null;
 
     let filteredDeckGames = displayDeck.games;
+    // Date Filter
     if (view.dateFilter && (view.dateFilter.start || view.dateFilter.end)) {
         const start = view.dateFilter.start ? new Date(view.dateFilter.start).setHours(0, 0, 0, 0) : 0;
         const end = view.dateFilter.end ? new Date(view.dateFilter.end).setHours(23, 59, 59, 999) : Date.now();
         filteredDeckGames = filteredDeckGames.filter(g => g.timestamp >= start && g.timestamp <= end);
     }
     
+    // Tag Filter
+    const tagFilter = view.tagFilter;
+    if (tagFilter) {
+         filteredDeckGames = filteredDeckGames.filter(game => {
+            const myTagIds = new Set(game.myTagIds || []);
+            const oppTagIds = new Set(game.opponentTagIds || []);
+
+            const { my, opp } = tagFilter;
+
+            if (my.include?.length > 0 && !my.include.every(id => myTagIds.has(id))) return false;
+            if (my.exclude?.length > 0 && my.exclude.some(id => myTagIds.has(id))) return false;
+            
+            if (opp.include?.length > 0 && !opp.include.every(id => oppTagIds.has(id))) return false;
+            if (opp.exclude?.length > 0 && opp.exclude.some(id => oppTagIds.has(id))) return false;
+
+            return true;
+        });
+    }
+
     const gamesToAnalyze = view.filterClass ? filteredDeckGames.filter(g => g.opponentClass === view.filterClass) : filteredDeckGames;
     
     const totalStatsRaw = processGames(filteredDeckGames);

@@ -55,11 +55,11 @@
     </div>
 
     <!-- Add Deck Modal -->
-    <div id="add-deck-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4" aria-modal="true" role="dialog">
+    <div id="add-deck-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4" aria-modal="true" role="dialog" aria-labelledby="add-deck-modal-title">
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md transform transition-all duration-300 scale-95 opacity-0 animate-fade-in-up">
              <form id="add-deck-form">
                 <div class="p-6">
-                    <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100">Add New Deck</h2>
+                    <h2 id="add-deck-modal-title" class="text-2xl font-bold text-gray-800 dark:text-gray-100">Add New Deck</h2>
                     <div class="mt-6">
                         <label for="deckName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Deck Name</label>
                         <input 
@@ -151,6 +151,68 @@
             </div>
         </div>
     </div>
+    
+    <!-- Delete Tag Confirmation Modal -->
+    <div id="delete-tag-confirm-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4" aria-modal="true" role="dialog" aria-labelledby="delete-tag-modal-title">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md transform transition-all duration-300 scale-95 opacity-0 animate-fade-in-up">
+            <div class="p-6">
+                <div class="sm:flex sm:items-start">
+                    <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                        <svg class="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                        </svg>
+                    </div>
+                    <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-gray-100" id="delete-tag-modal-title">Delete Tag</h3>
+                        <div class="mt-2">
+                            <p class="text-sm text-gray-500 dark:text-gray-400">
+                                Are you sure you want to delete the tag "<strong id="tag-to-delete-name" class="text-gray-600 dark:text-gray-300"></strong>"? It will be removed from all matches. This action cannot be undone.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gray-50 dark:bg-gray-700/50 px-6 py-4 flex flex-col-reverse sm:flex-row-reverse gap-3 rounded-b-lg">
+                <button type="button" data-action="confirm-delete-tag" id="confirm-delete-tag-button" class="inline-flex justify-center w-full rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                    Delete
+                </button>
+                <button type="button" data-action="close-delete-tag-modal" id="cancel-delete-tag-button" class="inline-flex justify-center w-full rounded-md border border-gray-300 dark:border-gray-500 shadow-sm px-4 py-2 bg-white dark:bg-gray-600 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Merge Tag Confirmation Modal -->
+    <div id="merge-tag-confirm-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4" aria-modal="true" role="dialog" aria-labelledby="merge-tag-modal-title">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md transform transition-all duration-300 scale-95 opacity-0 animate-fade-in-up">
+            <div class="p-6">
+                <div class="sm:flex sm:items-start">
+                    <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
+                        <svg class="h-6 w-6 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-gray-100" id="merge-tag-modal-title">Merge Tags</h3>
+                        <div class="mt-2">
+                            <p class="text-sm text-gray-500 dark:text-gray-400" id="merge-tag-modal-body">
+                                <!-- Content will be set by JS -->
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gray-50 dark:bg-gray-700/50 px-6 py-4 flex flex-col-reverse sm:flex-row-reverse gap-3 rounded-b-lg">
+                <button type="button" data-action="confirm-merge-tag" id="confirm-merge-tag-button" class="inline-flex justify-center w-full rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    Merge
+                </button>
+                <button type="button" data-action="close-merge-tag-modal" id="cancel-merge-tag-button" class="inline-flex justify-center w-full rounded-md border border-gray-300 dark:border-gray-500 shadow-sm px-4 py-2 bg-white dark:bg-gray-600 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Deck Notes Modal -->
     <div id="deck-notes-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4" aria-modal="true" role="dialog" aria-labelledby="deck-notes-modal-title">
@@ -227,6 +289,30 @@
                 </button>
                 <button type="button" data-action="close-reset-modal" id="cancel-reset-button" class="inline-flex justify-center w-full rounded-md border border-gray-300 dark:border-gray-500 shadow-sm px-4 py-2 bg-white dark:bg-gray-600 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                     Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tag Filter Modal -->
+    <div id="tag-filter-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4" aria-modal="true" role="dialog" aria-labelledby="tag-filter-modal-title">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl transform transition-all duration-300 scale-95 opacity-0 animate-fade-in-up">
+            <!-- Content rendered by JS -->
+        </div>
+    </div>
+    
+    <!-- Match Info Modal -->
+    <div id="match-info-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4" aria-modal="true" role="dialog" aria-labelledby="match-info-modal-title">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md transform transition-all duration-300 scale-95 opacity-0 animate-fade-in-up">
+            <div class="p-6">
+                <h3 id="match-info-modal-title" class="text-lg leading-6 font-medium text-gray-900 dark:text-gray-100 mb-4">Match Details</h3>
+                <div id="match-info-content" class="space-y-4 text-sm text-gray-700 dark:text-gray-300">
+                    <!-- Match details will be rendered here -->
+                </div>
+            </div>
+            <div class="bg-gray-50 dark:bg-gray-700/50 px-6 py-4 flex flex-row-reverse rounded-b-lg">
+                <button type="button" data-action="close-match-info-modal" class="inline-flex justify-center w-full sm:w-auto rounded-md border border-gray-300 dark:border-gray-500 shadow-sm px-4 py-2 bg-white dark:bg-gray-600 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    Close
                 </button>
             </div>
         </div>
