@@ -1,3 +1,5 @@
+
+
 import { state, CLASSES, classStyles, CLASS_NAMES, TURN_NAMES, RESULT_NAMES, translations, getTranslated, setDeckNotesState, setNewDeckClass, getTranslatedClassName, setTagToDeleteId, setTagToMerge, addTag, updateTagUsage } from './store.js';
 import { getStatsForView } from './calculator.js';
 
@@ -541,14 +543,14 @@ const renderAddGameView = (deckId) => {
             <label for="${containerId}-input" class="block text-sm font-medium text-gray-700 dark:text-gray-300">${label}</label>
             <div class="mt-1 relative">
                 <div class="w-full flex items-center gap-2 pr-1 pl-2 min-h-[42px] border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700">
-                    <div id="${containerId}-pills" class="flex flex-wrap gap-1.5 items-center"></div>
-                    <input type="text" id="${containerId}-input" placeholder="${t('addTagPlaceholder')}" class="flex-grow p-0 border-none focus:ring-0 bg-transparent dark:placeholder-gray-400 dark:text-white text-gray-900" autocomplete="off">
+                    <input type="text" id="${containerId}-input" placeholder="${t('addTagPlaceholder')}" class="flex-grow min-w-0 p-0 border-none focus:ring-0 bg-transparent dark:placeholder-gray-400 dark:text-white text-gray-900" autocomplete="off">
                     <button type="button" id="${containerId}-action-btn" class="flex-shrink-0 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors duration-150 disabled:bg-gray-200 dark:disabled:bg-gray-600 disabled:text-gray-400 dark:disabled:text-gray-500 disabled:cursor-not-allowed" disabled>
                         ${t('createTagButton')}
                     </button>
                 </div>
                 <div id="${containerId}-suggestions" class="hidden absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 rounded-md shadow-lg border dark:border-gray-700 max-h-60 overflow-y-auto"></div>
             </div>
+            <div id="${containerId}-pills" class="mt-2 flex flex-wrap gap-1.5 items-center min-h-[1rem]"></div>
         `;
 
         const input = document.getElementById(`${containerId}-input`);
@@ -1316,7 +1318,7 @@ const renderManageTagsView = () => {
         appContainer.innerHTML = `
             <main id="manage-tags-view" class="w-full max-w-2xl mx-auto">
                  <div class="flex items-center gap-4 mb-6">
-                    <button data-action="back-to-stats" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                    <button data-action="back-to-decks" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
                         <svg class="w-4 h-4 pointer-events-none" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
                         ${t('back')}
                     </button>
