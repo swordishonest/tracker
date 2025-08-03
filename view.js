@@ -17,7 +17,7 @@ const matchInfoModal = document.getElementById('match-info-modal');
 const tagFilterModal = document.getElementById('tag-filter-modal');
 
 // --- CONSTANTS ---
-const ITEMS_PER_PAGE = 50;
+const ITEMS_PER_PAGE = 20;
 
 // --- TRANSLATION HELPERS ---
 const t = (key, replacements = {}) => {
