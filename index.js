@@ -1,13 +1,16 @@
-
-
-
-
-import { state, saveDecks, saveSettings, loadDecks, loadSettings, setView, setEditingDeckId, setDeckNotesState, setNewDeckClass, setDeckToDeleteId, setMatchToDelete, setFileToImport, CLASSES, loadTags, loadTagUsage, saveTags, saveTagUsage, addTag, updateTagUsage, setAddGameTagsExpanded, setMatchInfoToShow, setTagToDeleteId, setTagToMerge } from './store.js';
+import { state, saveDecks, saveSettings, loadDecks, loadSettings, setView, setEditingDeckId, setDeckNotesState, setNewDeckClass, setDeckToDeleteId, setMatchToDelete, setFileToImport, CLASSES, loadTags, loadTagUsage, saveTags, saveTagUsage, addTag, updateTagUsage, setAddGameTagsExpanded, setMatchInfoToShow, setTagToDeleteId, setTagToMerge, loadTakeTwoDecks, saveTakeTwoDecks, initializeTakeTwoDecks, setMode } from './store.js';
 import { render, openAddDeckModal, closeAddDeckModal, openDeleteDeckModal, closeDeleteDeckModal, openDeleteMatchModal, closeDeleteMatchModal, openNotesModal, closeNotesModal, openImportModal, closeImportModal, openResetModal, closeResetModal, checkDeckFormValidity, setTheme, openTagFilterModal, closeTagFilterModal, openMatchInfoModal, closeMatchInfoModal, clearAddGameSelections, openDeleteTagModal, closeDeleteTagModal, openMergeTagModal, closeMergeTagModal, resetAddGameState } from './view.js';
+
+const getCurrentDecks = () => state.mode === 'takeTwo' ? state.takeTwoDecks : state.decks;
+const saveCurrentDecks = () => state.mode === 'takeTwo' ? saveTakeTwoDecks() : saveDecks();
 
 // --- DATA IMPORT/EXPORT ---
 const handleExport = () => {
-    if (state.decks.length === 0 && state.tags.length === 0) {
+    const hasNormalData = state.decks.length > 0;
+    const hasTakeTwoData = state.takeTwoDecks.some(d => d.games.length > 0);
+    const hasTagData = state.tags.length > 0;
+
+    if (!hasNormalData && !hasTakeTwoData && !hasTagData) {
         alert("There is no data to export.");
         return;
     }
@@ -15,17 +18,14 @@ const handleExport = () => {
     const turns = ['1st', '2nd'];
     const results = ['Win', 'Loss'];
 
-    // New: Tag ID to index mapping for optimized export
     const tagIdList = state.tags.map(t => t.id);
     const tagIdToIndexMap = new Map(tagIdList.map((id, index) => [id, index]));
 
-    const exportedDecks = state.decks.map(deck => ({
+    const encodeDeckArray = (deckArray) => deckArray.map(deck => ({
         ...deck,
         games: deck.games.map(game => {
-            // New: map tag IDs to indices
             const myTagIndices = (game.myTagIds || []).map(id => tagIdToIndexMap.get(id)).filter(i => i !== undefined);
             const opponentTagIndices = (game.opponentTagIds || []).map(id => tagIdToIndexMap.get(id)).filter(i => i !== undefined);
-
             return [
                 game.id,
                 game.timestamp,
@@ -39,7 +39,7 @@ const handleExport = () => {
     }));
 
     const exportData = {
-        version: "2.2",
+        version: "2.3",
         encoding: {
             classes: CLASSES,
             turns: turns,
@@ -47,7 +47,8 @@ const handleExport = () => {
             tagIdList: tagIdList,
             game_fields: ["id", "timestamp", "opponentClassIndex", "turnIndex", "resultIndex", "myTagIndices", "opponentTagIndices"]
         },
-        decks: exportedDecks,
+        decks: encodeDeckArray(state.decks),
+        takeTwoDecks: encodeDeckArray(state.takeTwoDecks),
         tags: state.tags,
         tagUsage: state.tagUsage
     };
@@ -77,26 +78,24 @@ const processImportFile = (file, mode) => {
     reader.onload = (e) => {
         try {
             const fileContent = e.target.result;
-            // Add a check for common non-JSON file types like ZIP archives.
             if (typeof fileContent === 'string' && fileContent.startsWith('PK')) {
                 throw new Error("Invalid file type. Please select a valid JSON backup file, not a ZIP archive.");
             }
             
             const rawData = JSON.parse(fileContent);
             
-            if (mode === 'merge' && !['2.2', '2.1', '2.0'].includes(rawData.version)) {
+            if (mode === 'merge' && !['2.3', '2.2', '2.1', '2.0'].includes(rawData.version)) {
                 alert("Merging is only supported for V2.0+ data format. Please use a compatible backup file or choose to overwrite.");
                 return;
             }
 
-            let importedDecks, importedTags = [], importedTagUsage = {};
+            let importedDecks, importedTakeTwoDecks = [], importedTags = [], importedTagUsage = {};
 
-            // V2.2 format with indexed tags
-            if (rawData.version === "2.2" && rawData.encoding?.tagIdList && Array.isArray(rawData.decks)) {
-                const { classes, turns, results, tagIdList } = rawData.encoding;
-                if (!classes || !turns || !results) throw new Error("Imported file has corrupt encoding data.");
-                
-                importedDecks = rawData.decks.map(deck => ({
+            const decodeDeckArray = (encodedDecks, encoding) => {
+                 const { classes, turns, results, tagIdList } = encoding;
+                 if (!classes || !turns || !results) throw new Error("Imported file has corrupt encoding data.");
+
+                 return encodedDecks.map(deck => ({
                     ...deck,
                     games: deck.games.map(gameArr => ({
                         id: gameArr[0],
@@ -104,47 +103,30 @@ const processImportFile = (file, mode) => {
                         opponentClass: classes[gameArr[2]],
                         turn: turns[gameArr[3]],
                         result: results[gameArr[4]],
-                        myTagIds: (gameArr[5] || []).map(index => tagIdList[index]).filter(Boolean),
-                        opponentTagIds: (gameArr[6] || []).map(index => tagIdList[index]).filter(Boolean),
+                        myTagIds: (gameArr[5] || []).map(index => tagIdList?.[index]).filter(Boolean),
+                        opponentTagIds: (gameArr[6] || []).map(index => tagIdList?.[index]).filter(Boolean),
                     }))
                 }));
-                // Strip class property from imported tags to make them neutral
+            };
+
+            // V2.3 format with Take Two decks
+            if (rawData.version === "2.3" && rawData.encoding?.tagIdList && Array.isArray(rawData.decks)) {
+                importedDecks = decodeDeckArray(rawData.decks, rawData.encoding);
+                importedTakeTwoDecks = decodeDeckArray(rawData.takeTwoDecks || [], rawData.encoding);
                 importedTags = (rawData.tags || []).map(({ id, name }) => ({ id, name }));
                 importedTagUsage = rawData.tagUsage || {};
-
+            } else if (rawData.version === "2.2" && rawData.encoding?.tagIdList && Array.isArray(rawData.decks)) {
+                importedDecks = decodeDeckArray(rawData.decks, rawData.encoding);
+                importedTags = (rawData.tags || []).map(({ id, name }) => ({ id, name }));
+                importedTagUsage = rawData.tagUsage || {};
             } else if (rawData.version === "2.1" && rawData.encoding && Array.isArray(rawData.decks)) { // V2.1 format with tags
-                const { classes, turns, results } = rawData.encoding;
-                if (!classes || !turns || !results) throw new Error("Imported file has corrupt encoding data.");
-                
-                importedDecks = rawData.decks.map(deck => ({
-                    ...deck,
-                    games: deck.games.map(gameArr => ({
-                        id: gameArr[0],
-                        timestamp: gameArr[1],
-                        opponentClass: classes[gameArr[2]],
-                        turn: turns[gameArr[3]],
-                        result: results[gameArr[4]],
-                        myTagIds: gameArr[5] || [],
-                        opponentTagIds: gameArr[6] || [],
-                    }))
-                }));
-                // Strip class property from imported tags to make them neutral
-                importedTags = (rawData.tags || []).map(({ id, name }) => ({ id, name }));
-                importedTagUsage = rawData.tagUsage || {};
-
+                 importedDecks = decodeDeckArray(rawData.decks, { ...rawData.encoding, tagIdList: rawData.tags.map(t => t.id) }); // Emulate tagIdList
+                 importedTags = (rawData.tags || []).map(({ id, name }) => ({ id, name }));
+                 importedTagUsage = rawData.tagUsage || {};
             } else if (rawData.version === "2.0" && rawData.encoding && Array.isArray(rawData.decks)) { // V2.0 format
                 const { classes, turns, results } = rawData.encoding;
-                if (!classes || !turns || !results) throw new Error("Imported file has corrupt encoding data.");
-
                 importedDecks = rawData.decks.map(deck => ({
-                    ...deck,
-                    games: deck.games.map(gameArr => ({
-                        id: gameArr[0],
-                        timestamp: gameArr[1],
-                        opponentClass: classes[gameArr[2]],
-                        turn: turns[gameArr[3]],
-                        result: results[gameArr[4]]
-                    }))
+                    ...deck, games: deck.games.map(gameArr => ({ id: gameArr[0], timestamp: gameArr[1], opponentClass: classes[gameArr[2]], turn: turns[gameArr[3]], result: results[gameArr[4]] }))
                 }));
             } else if (Array.isArray(rawData)) { // V1 legacy format
                  importedDecks = rawData.map(deck => ({ ...deck, notes: deck.notes || '' }));
@@ -152,16 +134,16 @@ const processImportFile = (file, mode) => {
                  throw new Error("Unsupported or corrupt file format.");
             }
             
-            // Basic data validation
             if (!Array.isArray(importedDecks)) throw new Error("The imported file contains invalid deck data.");
 
             if (mode === 'overwrite') {
                 state.decks = importedDecks;
+                state.takeTwoDecks = importedTakeTwoDecks;
                 state.tags = importedTags;
                 state.tagUsage = importedTagUsage;
                 alert("Data imported and overwritten successfully!");
             } else if (mode === 'merge') {
-                // 1. Merge Tags by name, creating a mapping for renamed IDs.
+                // 1. Merge Tags (same as before)
                 const importedIdToExistingIdMap = new Map();
                 const existingTagNames = new Map(state.tags.map(t => [t.name.toLowerCase(), t.id]));
                 const existingTagIds = new Set(state.tags.map(t => t.id));
@@ -169,37 +151,29 @@ const processImportFile = (file, mode) => {
 
                 importedTags.forEach(importedTag => {
                     const existingTagIdForName = existingTagNames.get(importedTag.name.toLowerCase());
-                    
                     if (existingTagIdForName) {
-                        // Name match found. Map the imported ID to the existing one.
-                        if (importedTag.id !== existingTagIdForName) {
-                            importedIdToExistingIdMap.set(importedTag.id, existingTagIdForName);
-                        }
+                        if (importedTag.id !== existingTagIdForName) importedIdToExistingIdMap.set(importedTag.id, existingTagIdForName);
                     } else if (!existingTagIds.has(importedTag.id)) {
-                        // This is a truly new tag (no name or ID collision).
                         tagsToAdd.push(importedTag);
-                        // Add to our maps to handle duplicates within the imported file itself.
                         existingTagNames.set(importedTag.name.toLowerCase(), importedTag.id);
                         existingTagIds.add(importedTag.id);
                     }
                 });
                 state.tags.push(...tagsToAdd);
 
-                // 2. Merge Tag Usage, considering the ID mapping.
+                // 2. Merge Tag Usage (same as before)
                 for (const importedTagId in importedTagUsage) {
                     const targetTagId = importedIdToExistingIdMap.get(importedTagId) || importedTagId;
                     const importedTimestamp = importedTagUsage[importedTagId];
-                    
                     if (!state.tagUsage[targetTagId] || importedTimestamp > state.tagUsage[targetTagId]) {
                         state.tagUsage[targetTagId] = importedTimestamp;
                     }
                 }
 
-                // 3. Remap tag IDs in imported decks' games BEFORE merging decks.
+                // 3. Remap tag IDs in imported games BEFORE merging decks.
                 const mapGameTagIds = game => {
                     const remap = (idArray) => {
                         if (!idArray) return [];
-                        // Use a Set to handle cases where a remapped ID might already exist in the array
                         const newIdSet = new Set(idArray.map(id => importedIdToExistingIdMap.get(id) || id));
                         return Array.from(newIdSet);
                     };
@@ -207,33 +181,47 @@ const processImportFile = (file, mode) => {
                     game.opponentTagIds = remap(game.opponentTagIds);
                     return game;
                 };
-                importedDecks.forEach(deck => {
-                    deck.games = deck.games.map(mapGameTagIds);
-                });
+                importedDecks.forEach(deck => { deck.games = deck.games.map(mapGameTagIds); });
+                importedTakeTwoDecks.forEach(deck => { deck.games = deck.games.map(mapGameTagIds); });
 
-                // 4. Merge decks and games (now with remapped tag IDs).
+                // 4. Merge Normal Decks (same as before)
                 const importedDecksMap = new Map(importedDecks.map(d => [d.id, d]));
                 const mergedDecks = state.decks.map(existingDeck => {
                     const importedDeckMatch = importedDecksMap.get(existingDeck.id);
                     if (importedDeckMatch) {
                         const existingGameIds = new Set(existingDeck.games.map(g => g.id));
                         const gamesToMerge = importedDeckMatch.games.filter(g => !existingGameIds.has(g.id));
-                        importedDecksMap.delete(existingDeck.id); // Remove from map so it's not added as a new deck
-
+                        importedDecksMap.delete(existingDeck.id);
                         const newNotes = 'notes' in importedDeckMatch ? importedDeckMatch.notes : existingDeck.notes;
                         return { ...existingDeck, games: [...existingDeck.games, ...gamesToMerge], notes: newNotes || '' };
                     }
                     return existingDeck;
                 });
-
                 const newDecks = Array.from(importedDecksMap.values());
                 state.decks = [...mergedDecks, ...newDecks];
+
+                // 5. Merge Take Two Decks
+                if (importedTakeTwoDecks.length > 0) {
+                    const t2DecksMap = new Map(importedTakeTwoDecks.map(d => [d.id, d]));
+                    state.takeTwoDecks.forEach(existingDeck => {
+                        const importedDeck = t2DecksMap.get(existingDeck.id);
+                        if (importedDeck) {
+                            const existingGameIds = new Set(existingDeck.games.map(g => g.id));
+                            const gamesToMerge = importedDeck.games.filter(g => !existingGameIds.has(g.id));
+                            existingDeck.games.push(...gamesToMerge);
+                             if ('notes' in importedDeck) { existingDeck.notes = importedDeck.notes; }
+                        }
+                    });
+                }
+                
                 alert("Data merged successfully!");
             }
 
             saveDecks();
+            saveTakeTwoDecks();
             saveTags();
             saveTagUsage();
+            initializeTakeTwoDecks();
             render();
 
         } catch (error) {
@@ -258,8 +246,9 @@ const handleFileSelect = (event) => {
     if (!file) return;
 
     setFileToImport(file);
+    const hasData = state.decks.length > 0 || state.takeTwoDecks.some(d => d.games.length > 0);
 
-    if (state.decks.length > 0) {
+    if (hasData) {
         openImportModal();
     } else {
         processImportFile(file, 'overwrite');
@@ -270,6 +259,7 @@ const handleFileSelect = (event) => {
 // --- EVENT HANDLERS ---
 const handleAddDeckSubmit = (e) => {
     e.preventDefault();
+    if (state.mode === 'takeTwo') return;
     const deckNameInput = document.getElementById('deckName');
     const saveDeckButton = document.getElementById('save-deck-button');
     const deckName = deckNameInput.value.trim();
@@ -316,11 +306,13 @@ const handleAddGameSubmit = (e) => {
             myTagIds,
             opponentTagIds,
         };
-
-        state.decks = state.decks.map(d =>
+        
+        const currentDeckListKey = state.mode === 'takeTwo' ? 'takeTwoDecks' : 'decks';
+        state[currentDeckListKey] = state[currentDeckListKey].map(d =>
             d.id === deckId ? { ...d, games: [newGame, ...d.games] } : d
         );
-        saveDecks();
+
+        saveCurrentDecks();
         
         saveButton.textContent = 'Game Saved!';
         saveButton.className = 'w-full px-4 py-3 font-semibold rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors duration-200 bg-green-600 text-white ring-green-500';
@@ -378,6 +370,7 @@ const handleGlobalClick = (e) => {
                 break;
             case 'confirm-reset':
                 state.decks = [];
+                state.takeTwoDecks = [];
                 state.tags = [];
                 state.tagUsage = {};
                 state.globalDateFilter = { start: null, end: null };
@@ -386,16 +379,26 @@ const handleGlobalClick = (e) => {
                     setView({ ...state.view, dateFilter: state.globalDateFilter, tagFilter: state.globalTagFilter });
                 }
                 saveDecks();
+                saveTakeTwoDecks();
                 saveTags();
                 saveTagUsage();
                 saveSettings();
+                initializeTakeTwoDecks();
                 closeResetModal();
                 render();
                 break;
             case 'confirm-delete-deck':
                 if (state.deckToDeleteId) {
-                    state.decks = state.decks.filter(d => d.id !== state.deckToDeleteId);
-                    saveDecks();
+                    if (state.mode === 'takeTwo') {
+                        state.takeTwoDecks = state.takeTwoDecks.map(d =>
+                            d.id === state.deckToDeleteId ? { ...d, games: [] } : d
+                        );
+                        saveTakeTwoDecks();
+                    } else {
+                        state.decks = state.decks.filter(d => d.id !== state.deckToDeleteId);
+                        saveDecks();
+                    }
+
                     const deletedDeckId = state.deckToDeleteId;
                     closeDeleteDeckModal();
                     if (state.view.type === 'stats' && state.view.deckId === deletedDeckId) {
@@ -407,13 +410,14 @@ const handleGlobalClick = (e) => {
             case 'confirm-delete-match':
                 if (state.matchToDelete) {
                     const { deckId: matchDeckId, gameId: matchGameId } = state.matchToDelete;
-                    state.decks = state.decks.map(deck => {
+                    const deckListKey = state.mode === 'takeTwo' ? 'takeTwoDecks' : 'decks';
+                    state[deckListKey] = state[deckListKey].map(deck => {
                         if (deck.id === matchDeckId) {
                             return { ...deck, games: deck.games.filter(g => g.id !== matchGameId) };
                         }
                         return deck;
                     });
-                    saveDecks();
+                    saveCurrentDecks();
                     closeDeleteMatchModal();
                     render();
                 }
@@ -421,15 +425,14 @@ const handleGlobalClick = (e) => {
             case 'confirm-delete-tag':
                 const tagIdToDelete = state.tagToDeleteId;
                 if (tagIdToDelete) {
-                    // Remove from all games
-                    state.decks.forEach(deck => {
+                    const decksToUpdate = [...state.decks, ...state.takeTwoDecks];
+                    decksToUpdate.forEach(deck => {
                         deck.games.forEach(game => {
                             if (game.myTagIds) game.myTagIds = game.myTagIds.filter(id => id !== tagIdToDelete);
                             if (game.opponentTagIds) game.opponentTagIds = game.opponentTagIds.filter(id => id !== tagIdToDelete);
                         });
                     });
                     
-                    // Clean from global filters
                     const cleanFilterArray = (arr) => arr ? arr.filter(id => id !== tagIdToDelete) : [];
                     const cleanTagFilter = (filter) => {
                         if (!filter) return;
@@ -444,11 +447,11 @@ const handleGlobalClick = (e) => {
                         cleanTagFilter(state.view.tagFilter);
                     }
 
-                    // Remove from master lists
                     state.tags = state.tags.filter(t => t.id !== tagIdToDelete);
                     delete state.tagUsage[tagIdToDelete];
 
                     saveDecks();
+                    saveTakeTwoDecks();
                     saveTags();
                     saveTagUsage();
                     saveSettings();
@@ -462,9 +465,9 @@ const handleGlobalClick = (e) => {
             
                 const sourceTagId = sourceTag.id;
                 const targetTagId = targetTag.id;
+                const decksToUpdate = [...state.decks, ...state.takeTwoDecks];
             
-                // 1. Update all game records
-                state.decks.forEach(deck => {
+                decksToUpdate.forEach(deck => {
                     deck.games.forEach(game => {
                         const mergeIds = (idArray) => {
                             if (!idArray || !idArray.includes(sourceTagId)) return idArray;
@@ -478,7 +481,6 @@ const handleGlobalClick = (e) => {
                     });
                 });
             
-                // 2. Merge tag usage timestamps (latest wins)
                 const sourceTimestamp = state.tagUsage[sourceTagId];
                 const targetTimestamp = state.tagUsage[targetTagId];
                 if (sourceTimestamp && (!targetTimestamp || sourceTimestamp > targetTimestamp)) {
@@ -486,7 +488,6 @@ const handleGlobalClick = (e) => {
                 }
                 delete state.tagUsage[sourceTagId];
             
-                // 3. Remove the merged tag from the master list and update filters
                 state.tags = state.tags.filter(t => t.id !== sourceTagId);
                 const mergeIdsInFilterArray = (idArray) => {
                     if (!idArray || !idArray.includes(sourceTagId)) return idArray;
@@ -508,13 +509,12 @@ const handleGlobalClick = (e) => {
                     mergeTagFilter(state.view.tagFilter);
                 }
             
-                // 4. Save all changes
                 saveDecks();
+                saveTakeTwoDecks();
                 saveTags();
                 saveTagUsage();
                 saveSettings();
             
-                // 5. Update UI
                 closeMergeTagModal();
                 setView({ ...state.view, editingTagId: null });
                 render();
@@ -524,7 +524,7 @@ const handleGlobalClick = (e) => {
                 setView({
                     type: 'stats',
                     deckId,
-                    filterClass: null, // Reset class filter on entry
+                    filterClass: null,
                     dateFilter: state.globalDateFilter,
                     tagFilter: state.globalTagFilter,
                     statsDeckSwitcherVisible: false,
@@ -546,6 +546,7 @@ const handleGlobalClick = (e) => {
             case 'edit-deck': setEditingDeckId(deckId); render(); break;
             case 'cancel-edit': setEditingDeckId(null); render(); break;
             case 'save-edit':
+                if (state.mode === 'takeTwo') break; // Should not be possible from UI
                 const input = document.querySelector(`input[data-deck-id="${deckId}"]`);
                 if (input) {
                     const newName = input.value.trim();
@@ -569,8 +570,9 @@ const handleGlobalClick = (e) => {
                 const textarea = document.querySelector('#deck-notes-modal textarea');
                 if (textarea) {
                     const deckIdToSave = state.deckNotesState.deckId;
-                    state.decks = state.decks.map(d => d.id === deckIdToSave ? { ...d, notes: textarea.value.trim() } : d);
-                    saveDecks();
+                    const deckListKey = state.mode === 'takeTwo' ? 'takeTwoDecks' : 'decks';
+                    state[deckListKey] = state[deckListKey].map(d => d.id === deckIdToSave ? { ...d, notes: textarea.value.trim() } : d);
+                    saveCurrentDecks();
                 }
                 closeNotesModal();
                 render();
@@ -582,9 +584,16 @@ const handleGlobalClick = (e) => {
                 setView({ type: 'list', editingDeckId: null });
                 render();
                 break;
+            case 'toggle-mode':
+                setMode(state.mode === 'normal' ? 'takeTwo' : 'normal');
+                resetAddGameState();
+                setView({ type: 'list', editingDeckId: null });
+                render();
+                break;
             case 'toggle-lang':
                 state.language = state.language === 'en' ? 'ja' : 'en';
                 saveSettings();
+                initializeTakeTwoDecks();
                 render();
                 break;
             case 'toggle-theme':
@@ -594,7 +603,10 @@ const handleGlobalClick = (e) => {
                 break;
             case 'import-data': handleImport(); break;
             case 'export-data': handleExport(); break;
-            case 'reset-all': if (state.decks.length > 0 || state.tags.length > 0) openResetModal(); break;
+            case 'reset-all':
+                const hasAnyData = state.decks.length > 0 || state.takeTwoDecks.some(d => d.games.length > 0) || state.tags.length > 0;
+                if (hasAnyData) openResetModal();
+                break;
             case 'filter-stats': {
                 const newFilter = state.view.filterClass === filterClass ? null : filterClass;
                 setView({ ...state.view, filterClass: newFilter, currentPage: 1 });
@@ -735,8 +747,6 @@ const handleGlobalInput = (e) => {
     if (target.id === 'deckName') {
         checkDeckFormValidity();
     } else if (target.id === 'new-tag-name' && state.view.type === 'manage_tags') {
-        // Since the render function is no longer destructive to the input,
-        // we can remove the complex IME composition checks and simply update on every input.
         setView({ ...state.view, tagSearchQuery: target.value });
         render();
     }
@@ -749,9 +759,7 @@ const handleGlobalSubmit = (e) => {
     if (form.id === 'add-deck-form') {
         handleAddDeckSubmit(e);
     } else if (form.id === 'add-game-form') {
-        // This is a safety net to prevent form submission from mobile keyboards.
-        // The user should use the new UI buttons to add tags or save the game.
-        // No action is taken here.
+        // Safety net to prevent form submission from mobile keyboards.
     } else if (form.dataset.action === 'save-tag') {
         if (state.view.type === 'manage_tags') {
             const newName = form.querySelector('input[name="tag-name"]').value.trim();
@@ -765,14 +773,12 @@ const handleGlobalSubmit = (e) => {
             );
             
             const sourceTag = state.tags.find(t => t.id === tagIdToEdit);
-            if (!sourceTag) return; // Should not happen
+            if (!sourceTag) return;
     
             if (existingTag) {
-                // Found a duplicate name, open merge confirmation modal
                 setTagToMerge({ sourceTag: sourceTag, targetTag: existingTag });
                 openMergeTagModal();
             } else {
-                // No collision, just a simple rename
                 state.tags = state.tags.map(t => (t.id === tagIdToEdit ? { ...t, name: newName } : t));
                 saveTags();
                 setView({ ...state.view, editingTagId: null });
@@ -822,7 +828,6 @@ const handleGlobalSubmit = (e) => {
 }
 
 const handleGlobalKeyDown = (e) => {
-    // Handle Escape key to close modals or cancel edits
     if (e.key === 'Escape') {
         if (!document.getElementById('add-deck-modal').classList.contains('hidden')) closeAddDeckModal();
         else if (!document.getElementById('delete-deck-confirm-modal').classList.contains('hidden')) closeDeleteDeckModal();
@@ -846,8 +851,8 @@ const handleGlobalKeyDown = (e) => {
         }
     }
 
-    // Handle Enter key in deck name edit input
     if (e.key === 'Enter' && e.target.matches('input[data-deck-id]')) {
+        if (state.mode === 'takeTwo') return;
         const deckId = e.target.dataset.deckId;
         const newName = e.target.value.trim();
         if (newName) {
@@ -864,19 +869,22 @@ const setupEventListeners = () => {
     document.body.addEventListener('input', handleGlobalInput);
     document.body.addEventListener('submit', handleGlobalSubmit);
     document.addEventListener('keydown', handleGlobalKeyDown);
-
-    // Specific listeners not covered by delegation
     document.getElementById('import-file-input').addEventListener('change', handleFileSelect);
 };
 
 // --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', () => {
     state.decks = loadDecks();
+    state.takeTwoDecks = loadTakeTwoDecks();
     state.tags = loadTags();
     state.tagUsage = loadTagUsage();
+    
     const settings = loadSettings();
     if (settings.language && (settings.language === 'en' || settings.language === 'ja')) {
         state.language = settings.language;
+    }
+    if (settings.mode && ['normal', 'takeTwo'].includes(settings.mode)) {
+        state.mode = settings.mode;
     }
     if (settings.chartType && ['pie', 'bar'].includes(settings.chartType)) {
         state.chartType = settings.chartType;
@@ -891,8 +899,6 @@ document.addEventListener('DOMContentLoaded', () => {
         state.globalTagFilter = settings.globalTagFilter;
     }
 
-    // Theme is set via inline script in HTML to prevent FOUC.
-    // We just need to sync the state object.
     if (document.documentElement.classList.contains('dark')) {
         state.theme = 'dark';
     } else {
@@ -902,7 +908,8 @@ document.addEventListener('DOMContentLoaded', () => {
         state.theme = settings.theme;
     }
     
-    // Check for old data format and strip class from tags if present
+    initializeTakeTwoDecks();
+    
     let tagsUpdated = false;
     state.tags.forEach(tag => {
         if (tag.hasOwnProperty('class')) {

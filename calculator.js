@@ -3,6 +3,7 @@ import { CLASSES, CLASS_NAMES, getTranslated } from './store.js';
 const cache = new Map();
 let lastDecksRef = null;
 let lastTagsRef = null;
+let lastModeRef = null;
 
 const createEmptyStats = () => ({
     total: 0,
@@ -60,14 +61,15 @@ const processGames = (games) => {
     return stats;
 };
 
-export const getStatsForView = (view, decks, tags, t, language) => {
-    if (lastDecksRef !== decks || lastTagsRef !== tags) {
+export const getStatsForView = (view, decks, tags, t, language, mode) => {
+    if (lastDecksRef !== decks || lastTagsRef !== tags || lastModeRef !== mode) {
         cache.clear();
         lastDecksRef = decks;
         lastTagsRef = tags;
+        lastModeRef = mode;
     }
 
-    const cacheKey = JSON.stringify({ ...view, language });
+    const cacheKey = JSON.stringify({ ...view, language, mode });
     if (cache.has(cacheKey)) {
         return cache.get(cacheKey);
     }
@@ -89,7 +91,8 @@ export const getStatsForView = (view, decks, tags, t, language) => {
         };
     } else if (isAllDecksView) {
         const allGames = decks.flatMap(d => d.games.map(g => ({...g, originalDeckId: d.id, originalDeckClass: d.class})));
-        displayDeck = { id: 'all', name: t('allDecks'), class: 'All', games: allGames };
+        const name = mode === 'takeTwo' ? t('allClasses') : t('allDecks');
+        displayDeck = { id: 'all', name, class: 'All', games: allGames };
     } else {
         displayDeck = decks.find(d => d.id === view.deckId);
     }
@@ -99,66 +102,88 @@ export const getStatsForView = (view, decks, tags, t, language) => {
     let filteredDeckGames = displayDeck.games;
     // Date Filter
     if (view.dateFilter && (view.dateFilter.start || view.dateFilter.end)) {
-        const start = view.dateFilter.start ? new Date(view.dateFilter.start).setHours(0, 0, 0, 0) : 0;
-        const end = view.dateFilter.end ? new Date(view.dateFilter.end).setHours(23, 59, 59, 999) : Date.now();
-        filteredDeckGames = filteredDeckGames.filter(g => g.timestamp >= start && g.timestamp <= end);
-    }
-    
-    // Tag Filter
-    const tagFilter = view.tagFilter;
-    if (tagFilter) {
-         filteredDeckGames = filteredDeckGames.filter(game => {
-            const myTagIds = new Set(game.myTagIds || []);
-            const oppTagIds = new Set(game.opponentTagIds || []);
-
-            const { my, opp } = tagFilter;
-
-            if (my.include?.length > 0 && !my.include.every(id => myTagIds.has(id))) return false;
-            if (my.exclude?.length > 0 && my.exclude.some(id => myTagIds.has(id))) return false;
-            
-            if (opp.include?.length > 0 && !opp.include.every(id => oppTagIds.has(id))) return false;
-            if (opp.exclude?.length > 0 && opp.exclude.some(id => oppTagIds.has(id))) return false;
-
+        const startDate = view.dateFilter.start ? new Date(view.dateFilter.start).setHours(0, 0, 0, 0) : null;
+        const endDate = view.dateFilter.end ? new Date(view.dateFilter.end).setHours(23, 59, 59, 999) : null;
+        filteredDeckGames = filteredDeckGames.filter(game => {
+            const gameDate = game.timestamp;
+            if (startDate && gameDate < startDate) return false;
+            if (endDate && gameDate > endDate) return false;
             return true;
         });
     }
 
-    const gamesToAnalyze = view.filterClass ? filteredDeckGames.filter(g => g.opponentClass === view.filterClass) : filteredDeckGames;
-    
-    const totalStatsRaw = processGames(filteredDeckGames);
-    const mainStatsRaw = processGames(gamesToAnalyze);
-    
-    mainStatsRaw.longestStreak = calculateLongestStreak(gamesToAnalyze);
-    
-    const formatRate = (wins, total) => total > 0 ? `${((wins / total) * 100).toFixed(1)}%` : t('na');
-    
+    // Tag Filter
+    if (view.tagFilter) {
+        const { my, opp } = view.tagFilter;
+        if (my.include.length > 0 || my.exclude.length > 0 || opp.include.length > 0 || opp.exclude.length > 0) {
+            filteredDeckGames = filteredDeckGames.filter(game => {
+                const myTagIds = new Set(game.myTagIds || []);
+                const oppTagIds = new Set(game.opponentTagIds || []);
+                
+                // My Tags - Include
+                if (my.include.length > 0 && !my.include.some(id => myTagIds.has(id))) {
+                    return false;
+                }
+                // My Tags - Exclude
+                if (my.exclude.length > 0 && my.exclude.some(id => myTagIds.has(id))) {
+                    return false;
+                }
+                // Opponent Tags - Include
+                if (opp.include.length > 0 && !opp.include.some(id => oppTagIds.has(id))) {
+                    return false;
+                }
+                // Opponent Tags - Exclude
+                if (opp.exclude.length > 0 && opp.exclude.some(id => oppTagIds.has(id))) {
+                    return false;
+                }
+                
+                return true;
+            });
+        }
+    }
+
+    const filteredDeckGamesCount = filteredDeckGames.length;
+    const totalStatsForPie = processGames(filteredDeckGames);
+
+    // Opponent Class Filter
+    if (view.filterClass) {
+        filteredDeckGames = filteredDeckGames.filter(g => g.opponentClass === view.filterClass);
+    }
+
+    const calculatedStats = processGames(filteredDeckGames);
+    calculatedStats.longestStreak = calculateLongestStreak(filteredDeckGames);
+
     const stats = {
-        ...mainStatsRaw,
-        winRate: formatRate(mainStatsRaw.wins, mainStatsRaw.total),
-        firstTurnWinRate: formatRate(mainStatsRaw.firstTurnWins, mainStatsRaw.firstTurnTotal),
-        secondTurnWinRate: formatRate(mainStatsRaw.secondTurnWins, mainStatsRaw.secondTurnTotal),
+        total: calculatedStats.total,
+        wins: calculatedStats.wins,
+        losses: calculatedStats.losses,
+        firstTurnTotal: calculatedStats.firstTurnTotal,
+        firstTurnWins: calculatedStats.firstTurnWins,
+        secondTurnTotal: calculatedStats.secondTurnTotal,
+        secondTurnWins: calculatedStats.secondTurnWins,
+        longestStreak: calculatedStats.longestStreak,
+        winRate: calculatedStats.total > 0 ? `${((calculatedStats.wins / calculatedStats.total) * 100).toFixed(1)}%` : t('na'),
+        firstTurnWinRate: calculatedStats.firstTurnTotal > 0 ? `${((calculatedStats.firstTurnWins / calculatedStats.firstTurnTotal) * 100).toFixed(1)}%` : t('na'),
+        secondTurnWinRate: calculatedStats.secondTurnTotal > 0 ? `${((calculatedStats.secondTurnWins / calculatedStats.secondTurnTotal) * 100).toFixed(1)}%` : t('na'),
     };
 
     const winRateByClass = CLASSES.reduce((acc, cls) => {
-        const { wins, total } = totalStatsRaw.winLossByOpponent[cls];
-        acc[cls] = formatRate(wins, total);
+        const { wins, total } = totalStatsForPie.winLossByOpponent[cls];
+        acc[cls] = total > 0 ? `${((wins / total) * 100).toFixed(1)}%` : t('na');
         return acc;
     }, {});
     
-    const sortedGames = [...gamesToAnalyze].sort((a, b) => b.timestamp - a.timestamp);
-    
+    const sortedGames = [...filteredDeckGames].sort((a, b) => b.timestamp - a.timestamp);
+
     const result = {
         displayDeck,
         stats,
-        totalStatsForPie: { 
-            opponentDistribution: totalStatsRaw.opponentDistribution, 
-            total: totalStatsRaw.total,
-        },
+        totalStatsForPie,
         winRateByClass,
         sortedGames,
-        filteredDeckGamesCount: filteredDeckGames.length,
+        filteredDeckGamesCount,
     };
-    
+
     cache.set(cacheKey, result);
     return result;
 };

@@ -12,6 +12,7 @@ export const classStyles = {
     Neutral: { text: 'text-gray-600 dark:text-gray-300', tag: 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200' },
 };
 export const STORAGE_KEY_DECKS = 'svwb-deck-tracker-decks';
+export const STORAGE_KEY_TAKE_TWO_DECKS = 'svwb-deck-tracker-decks-take-two';
 export const STORAGE_KEY_SETTINGS = 'svwb-tracker-settings';
 export const STORAGE_KEY_TAGS = 'svwb-deck-tracker-tags';
 export const STORAGE_KEY_TAG_USAGE = 'svwb-deck-tracker-tag-usage';
@@ -24,13 +25,18 @@ export const translations = {
         'back': 'Back', 'import': 'Import', 'export': 'Export', 'reset': 'Reset',
         'save': 'Save', 'merge': 'Merge', 'overwrite': 'Overwrite', 'edit': 'Edit', 'close': 'Close',
         'appName': 'SVWB Win Tracker', 'appSubtitle': 'All data is saved in your browser.',
-        'allDecks': 'All Decks', 'allClassDecks': 'All {class} Decks', 'addNewDeck': 'Add New Deck', 'addGame': 'Add Game', 'stats': 'Stats',
+        'allDecks': 'All Decks', 'allClasses': 'All Classes', 'allClassDecks': 'All {class} Decks', 'addNewDeck': 'Add New Deck', 'addGame': 'Add Game', 'stats': 'Stats',
         // Deck List
         'noDecks': 'No decks added yet', 'noDecksHint': 'Get started by creating a new deck.',
         'resetAll': 'Reset All', 'deckAriaDelete': 'Delete deck {name}', 'renameDeck': 'Rename deck {name}',
         'saveName': 'Save name', 'cancelEdit': 'Cancel edit', 'lastPlayed': 'Last played',
         'notes': 'Notes', 'saveNotes': 'Save Notes', 'editNotes': 'Edit Notes', 'addNotes': 'Add Notes',
         'notesFor': 'Notes for {name}', 'noNotesYet': 'No notes yet. Click Edit to add some!',
+        // Modes
+        'takeTwoMode': 'Take Two', 'normalMode': 'Normal Mode',
+        'resetClassTitle': 'Reset Class Data',
+        'resetClassAria': 'Reset data for class {name}',
+        'resetClassConfirm': 'Are you sure you want to reset all Take Two matches for {name}? This cannot be undone.',
         // Modals
         'deckName': 'Deck Name', 'deckNamePlaceholder': 'e.g. Aggro Forest', 'saveDeck': 'Save Deck',
         'deleteDeckTitle': 'Delete Deck',
@@ -40,7 +46,7 @@ export const translations = {
         'importTitle': 'Import Data',
         'importConfirm': 'How would you like to import this file? Merging adds new decks and matches to your existing data. Overwriting replaces all current data.',
         'resetTitle': 'Reset All Data',
-        'resetConfirm': 'Are you sure you want to reset all data? All decks and match history will be permanently deleted. This action cannot be undone.',
+        'resetConfirm': 'Are you sure you want to reset all data? All decks, match history, tags, and Take Two records will be permanently deleted. This action cannot be undone.',
         'matchDetails': 'Match Details', 'recordedAt': 'Recorded at', 'noTagsForMatch': 'No tags were added to this match.',
         // Add Game
         'addGameTitle': 'Add Game for {name}',
@@ -83,12 +89,16 @@ export const translations = {
         'back': '戻る', 'import': 'インポート', 'export': 'エクスポート', 'reset': 'リセット',
         'save': '保存', 'merge': 'マージ', 'overwrite': '上書き', 'edit': '編集', 'close': '閉じる',
         'appName': 'SVWB 勝敗トラッカー', 'appSubtitle': 'すべてのデータはブラウザに保存されます。',
-        'allDecks': 'すべてのデッキ', 'allClassDecks': 'すべての{class}デッキ', 'addNewDeck': '新規デッキ追加', 'addGame': '対戦を追加', 'stats': '戦績',
+        'allDecks': 'すべてのデッキ', 'allClasses': 'すべてのクラス', 'allClassDecks': 'すべての{class}デッキ', 'addNewDeck': '新規デッキ追加', 'addGame': '対戦を追加', 'stats': '戦績',
         'noDecks': 'まだデッキがありません', 'noDecksHint': '新しいデッキを作成して始めましょう。',
         'resetAll': 'すべてリセット', 'deckAriaDelete': 'デッキ「{name}」を削除', 'renameDeck': 'デッキ「{name}」の名前を変更',
         'saveName': '名前を保存', 'cancelEdit': '編集をキャンセル', 'lastPlayed': '最終プレイ日',
         'notes': 'メモ', 'saveNotes': 'メモを保存', 'editNotes': 'メモを編集', 'addNotes': 'メモを追加',
         'notesFor': '{name}のメモ', 'noNotesYet': 'まだメモがありません。「編集」をクリックして追加しましょう！',
+        'takeTwoMode': '2Pick', 'normalMode': '通常モード',
+        'resetClassTitle': 'クラスデータのリセット',
+        'resetClassAria': 'クラス「{name}」のデータをリセット',
+        'resetClassConfirm': 'クラス「{name}」の2Pick対戦記録をすべてリセットしますか？この操作は元に戻せません。',
         'deckName': 'デッキ名', 'deckNamePlaceholder': '例: アグロエルフ', 'saveDeck': 'デッキを保存',
         'deleteDeckTitle': 'デッキを削除',
         'deleteDeckConfirm': 'デッキ「{name}」を削除しますか？関連するすべての対戦データが完全に削除されます。この操作は元に戻せません。',
@@ -97,7 +107,7 @@ export const translations = {
         'importTitle': 'データインポート',
         'importConfirm': 'このファイルをインポートする方法を選択してください。マージは既存のデータに新しいデッキと対戦を追加します。上書きは現在のすべてのデータを置き換えます。',
         'resetTitle': 'すべてのデータをリセット',
-        'resetConfirm': 'すべてのデータをリセットしますか？すべてのデッキと対戦履歴が完全に削除されます。この操作は元に戻せません。',
+        'resetConfirm': 'すべてのデータをリセットしますか？すべてのデッキ、対戦履歴、タグ、2Pickの記録が完全に削除されます。この操作は元に戻せません。',
         'matchDetails': '対戦の詳細', 'recordedAt': '記録日時', 'noTagsForMatch': 'この対戦にはタグが追加されていません。',
         'addGameTitle': '{name}の対戦を追加',
         'opponentClass': '対戦相手のクラス', 'turn': '先行/後攻', 'result': '勝敗',
@@ -150,8 +160,10 @@ export const RESULT_NAMES = {
 // --- STATE MANAGEMENT ---
 export let state = {
     decks: [],
+    takeTwoDecks: [],
     tags: [],
     tagUsage: {}, // { [tagId]: timestamp }
+    mode: 'normal', // 'normal' | 'takeTwo'
     language: 'en',
     theme: 'light',
     chartType: 'pie',
@@ -176,6 +188,11 @@ export const getTranslatedClassName = (key) => getTranslated(CLASS_NAMES, key);
 // --- STATE MUTATORS ---
 export const setView = (newView) => {
     state.view = newView;
+};
+
+export const setMode = (mode) => {
+    state.mode = mode;
+    saveSettings();
 };
 
 export const setEditingDeckId = (id) => {
@@ -253,6 +270,56 @@ export const saveDecks = () => {
     }
 };
 
+export const loadTakeTwoDecks = () => {
+    try {
+        const savedDecks = localStorage.getItem(STORAGE_KEY_TAKE_TWO_DECKS);
+        return savedDecks ? JSON.parse(savedDecks) : [];
+    } catch (error) {
+        console.error("Could not parse Take Two decks from localStorage", error);
+        return [];
+    }
+};
+
+export const saveTakeTwoDecks = () => {
+    try {
+        localStorage.setItem(STORAGE_KEY_TAKE_TWO_DECKS, JSON.stringify(state.takeTwoDecks));
+    } catch (error) {
+        console.error("Could not save Take Two decks to localStorage", error);
+    }
+};
+
+export const initializeTakeTwoDecks = () => {
+    const existingDecks = new Map(state.takeTwoDecks.map(d => [d.id, d]));
+    const newDecks = [];
+    let needsSave = false;
+
+    for (const cls of CLASSES) {
+        const translatedName = getTranslatedClassName(cls);
+        if (existingDecks.has(cls)) {
+            const deck = existingDecks.get(cls);
+            if (deck.name !== translatedName) {
+                deck.name = translatedName;
+                needsSave = true;
+            }
+            newDecks.push(deck);
+        } else {
+            newDecks.push({
+                id: cls,
+                name: translatedName,
+                class: cls,
+                games: [],
+                notes: '',
+            });
+            needsSave = true;
+        }
+    }
+
+    state.takeTwoDecks = newDecks;
+    if (needsSave) {
+        saveTakeTwoDecks();
+    }
+};
+
 export const loadTags = () => {
     try {
         const saved = localStorage.getItem(STORAGE_KEY_TAGS);
@@ -304,6 +371,7 @@ export const saveSettings = () => {
         const settings = {
             language: state.language,
             theme: state.theme,
+            mode: state.mode,
             chartType: state.chartType,
             addGameTagsExpanded: state.addGameTagsExpanded,
             globalDateFilter: state.globalDateFilter,

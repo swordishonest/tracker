@@ -283,10 +283,11 @@ const renderTagPills = (tagIds, tagsById, deletable = false, onPillClick = null,
 
 // --- VIEW RENDERERS ---
 const renderDeckList = () => {
-    const decks = state.decks;
+    const decks = state.mode === 'takeTwo' ? state.takeTwoDecks : state.decks;
+    const isTakeTwoMode = state.mode === 'takeTwo';
     let contentHTML;
     
-    if (decks.length === 0) {
+    if (decks.length === 0 && !isTakeTwoMode) {
         contentHTML = `
             <div class="text-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-12">
                 <h3 class="text-sm font-medium text-gray-900 dark:text-gray-200">${t('noDecks')}</h3>
@@ -304,7 +305,7 @@ const renderDeckList = () => {
 
             const isEditing = state.view.type === 'list' && state.view.editingDeckId === deck.id;
 
-            const nameSectionHTML = isEditing ? `
+            const nameSectionHTML = isEditing && !isTakeTwoMode ? `
                 <div class="flex gap-2 items-center mb-1">
                     <input 
                         type="text" 
@@ -324,9 +325,11 @@ const renderDeckList = () => {
                 <div class="flex justify-between items-start mb-1">
                     <div class="flex items-center gap-2 min-w-0">
                         <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 truncate" title="${deck.name}">${deck.name}</h3>
+                        ${!isTakeTwoMode ? `
                         <button data-action="edit-deck" data-deck-id="${deck.id}" aria-label="${t('renameDeck', {name: deck.name})}" class="p-1.5 text-gray-400 dark:text-gray-500 rounded-full hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-gray-400 flex-shrink-0">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L16.732 3.732z" /></svg>
                         </button>
+                        ` : ''}
                     </div>
                     <span class="flex-shrink-0 ml-2 px-2 py-0.5 text-xs font-semibold rounded-full ${style.bg} ${style.text}">${getTranslatedClassName(deck.class)}</span>
                 </div>
@@ -334,6 +337,11 @@ const renderDeckList = () => {
             
             const notesIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 pointer-events-none" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg>`;
             
+            const deleteIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 pointer-events-none" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" /></svg>`;
+
+            const deleteButtonTitle = isTakeTwoMode ? t('reset') : t('delete');
+            const deleteButtonAriaLabel = isTakeTwoMode ? t('resetClassAria', {name: deck.name}) : t('deckAriaDelete', {name: deck.name});
+
             const actionBarHTML = `
                <div class="mt-4 border-t border-gray-200 dark:border-gray-700 pt-3 flex items-center justify-between">
                    <div class="flex gap-2">
@@ -344,10 +352,8 @@ const renderDeckList = () => {
                        <button data-action="open-notes-modal" data-deck-id="${deck.id}" aria-label="${t('notesFor', {name: deck.name})}" title="${t('notes')}" class="relative p-2 text-gray-400 dark:text-gray-500 rounded-full hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                            ${notesIcon}
                        </button>
-                       <button data-action="open-delete-deck-modal" data-deck-id="${deck.id}" aria-label="${t('deckAriaDelete', {name: deck.name})}" title="${t('delete')}" class="p-2 text-gray-400 dark:text-gray-500 rounded-full hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/50 dark:hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
-                           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 pointer-events-none" viewBox="0 0 20 20" fill="currentColor">
-                               <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" />
-                           </svg>
+                       <button data-action="open-delete-deck-modal" data-deck-id="${deck.id}" aria-label="${deleteButtonAriaLabel}" title="${deleteButtonTitle}" class="p-2 text-gray-400 dark:text-gray-500 rounded-full hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/50 dark:hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                           ${deleteIcon}
                        </button>
                    </div>
                </div>
@@ -375,6 +381,8 @@ const renderDeckList = () => {
     const moonIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 pointer-events-none" viewBox="0 0 20 20" fill="currentColor"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" /></svg>`;
     const sunIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>`;
 
+    const hasAnyData = state.decks.length > 0 || state.takeTwoDecks.some(d => d.games.length > 0) || state.tags.length > 0;
+
     appContainer.innerHTML = `
         <main class="w-full max-w-7xl mx-auto">
             <div class="bg-white dark:bg-gray-800 dark:border dark:border-gray-700/50 rounded-xl shadow-lg p-6 md:p-10">
@@ -389,15 +397,20 @@ const renderDeckList = () => {
                     <button data-action="import-data" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-400">
                         ${t('import')}
                     </button>
-                    <button data-action="export-data" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-400 disabled:opacity-50" ${decks.length === 0 && state.tags.length === 0 ? 'disabled' : ''}>
+                    <button data-action="export-data" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-400 disabled:opacity-50" ${!hasAnyData ? 'disabled' : ''}>
                         ${t('export')}
                     </button>
-                    <button data-action="reset-all" class="px-4 py-2 text-sm font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200 dark:bg-red-900/50 dark:text-red-300 dark:hover:bg-red-900 focus:outline-none focus:ring-2 focus:ring-red-400 disabled:opacity-50 disabled:cursor-not-allowed" ${decks.length === 0 && state.tags.length === 0 ? 'disabled' : ''}>
+                    <button data-action="reset-all" class="px-4 py-2 text-sm font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200 dark:bg-red-900/50 dark:text-red-300 dark:hover:bg-red-900 focus:outline-none focus:ring-2 focus:ring-red-400 disabled:opacity-50 disabled:cursor-not-allowed" ${!hasAnyData ? 'disabled' : ''}>
                         ${t('resetAll')}
                     </button>
+                    <button data-action="toggle-mode" class="px-4 py-2 text-sm font-medium text-purple-700 bg-purple-100 rounded-md hover:bg-purple-200 dark:bg-purple-900/50 dark:text-purple-300 dark:hover:bg-purple-900 focus:outline-none focus:ring-2 focus:ring-purple-400">
+                        ${isTakeTwoMode ? t('normalMode') : t('takeTwoMode')}
+                    </button>
+                    ${!isTakeTwoMode ? `
                     <button data-action="open-add-deck-modal" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition-transform transform hover:scale-105">
                         ${t('addNewDeck')}
                     </button>
+                    ` : ''}
                 </div>
                 <div class="mt-10">${contentHTML}</div>
                 <p class="mt-8 text-center text-base text-gray-500 dark:text-gray-400">${t('appSubtitle')}</p>
@@ -431,7 +444,8 @@ export const clearAddGameSelections = () => {
 };
 
 const renderAddGameView = (deckId) => {
-    const deck = state.decks.find(d => d.id === deckId);
+    const deckList = state.mode === 'takeTwo' ? state.takeTwoDecks : state.decks;
+    const deck = deckList.find(d => d.id === deckId);
     if (!deck) {
         appContainer.innerHTML = `<p>Deck not found</p>`;
         return;
@@ -447,6 +461,8 @@ const renderAddGameView = (deckId) => {
             opponentSelectedTagIds: [],
         };
     }
+
+    const availableDecks = state.mode === 'takeTwo' ? state.takeTwoDecks : state.decks;
 
     appContainer.innerHTML = `
         <main class="w-full max-w-2xl mx-auto">
@@ -464,7 +480,7 @@ const renderAddGameView = (deckId) => {
                     </button>
                     <div id="add-game-deck-switcher-dropdown" class="${state.view.addGameDeckSwitcherVisible ? '' : 'hidden'} absolute top-full left-0 mt-2 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-xl border dark:border-gray-700 z-20 overflow-hidden">
                         <ul class="max-h-60 overflow-y-auto">
-                            ${state.decks.map(d => `<li><button data-action="switch-add-game-deck" data-deck-id="${d.id}" class="w-full text-left px-4 py-3 text-sm hover:bg-blue-50 dark:hover:bg-blue-900/40 transition-colors ${d.id === deck.id ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-gray-700 dark:text-gray-300'}">${d.name} <span class="text-xs ${classStyles[d.class].text}">(${getTranslatedClassName(d.class)})</span></button></li>`).join('')}
+                            ${availableDecks.map(d => `<li><button data-action="switch-add-game-deck" data-deck-id="${d.id}" class="w-full text-left px-4 py-3 text-sm hover:bg-blue-50 dark:hover:bg-blue-900/40 transition-colors ${d.id === deck.id ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-gray-700 dark:text-gray-300'}">${d.name} <span class="text-xs ${classStyles[d.class].text}">(${getTranslatedClassName(d.class)})</span></button></li>`).join('')}
                         </ul>
                     </div>
                 </div>
@@ -906,8 +922,8 @@ const renderAddGameView = (deckId) => {
 };
 
 const renderStatsView = (deckId) => {
-    // --- 1. Get memoized stats from the calculator ---
-    const calculatedData = getStatsForView(state.view, state.decks, state.tags, t, state.language);
+    const deckList = state.mode === 'takeTwo' ? state.takeTwoDecks : state.decks;
+    const calculatedData = getStatsForView(state.view, deckList, state.tags, t, state.language, state.mode);
 
     if (!calculatedData) {
         appContainer.innerHTML = `<p>Deck not found</p>`;
@@ -1004,7 +1020,7 @@ const renderStatsView = (deckId) => {
         const opponentStyle = classStyles[game.opponentClass];
         const resultStyle = game.result === 'Win' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
         
-        const deckName = (isAllDecksView || deckId.startsWith('all-')) ? (state.decks.find(d => d.id === game.originalDeckId)?.name || 'Unknown') : '';
+        const deckName = (isAllDecksView || deckId.startsWith('all-')) ? (deckList.find(d => d.id === game.originalDeckId)?.name || 'Unknown') : '';
         const deckInfoHTML = (isAllDecksView || deckId.startsWith('all-'))
             ? `<div class="flex-grow text-left min-w-0"><span class="inline-block max-w-full px-2 py-1 text-xs font-semibold rounded-full truncate ${classStyles[game.originalDeckClass].bg} ${classStyles[game.originalDeckClass].text}" title="${deckName}">${deckName}</span></div>`
             : '<div class="flex-grow"></div>';
@@ -1048,8 +1064,12 @@ const renderStatsView = (deckId) => {
         return `<div class="flex items-center flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600 dark:text-gray-400">${filters.join(' &bull; ')}</div>`;
     };
 
+    const availableDecks = state.mode === 'takeTwo' ? state.takeTwoDecks : state.decks;
+    const isNormalMode = state.mode === 'normal';
+    const allText = isNormalMode ? t('allDecks') : t('allClasses');
+
     // --- 4. Assemble the final HTML ---
-    appContainer.innerHTML = `<main class="w-full max-w-7xl mx-auto"><div class="relative"><div class="flex justify-between items-center gap-2"><div class="flex items-center gap-2 min-w-0"><button data-action="back-to-decks" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"><svg class="w-4 h-4 pointer-events-none" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>${t('back')}</button><div class="relative flex-1 min-w-0 ml-2"><button data-action="toggle-deck-switcher" id="deck-switcher-btn" class="flex w-full items-center gap-2 p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700/50 transition-colors"><h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100 truncate" title="${displayDeck.name}">${t('statsFor', {name: `<span class="${classStyles[displayDeck.class].text}">${displayDeck.name}</span>`})}</h2><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 dark:text-gray-400 transition-transform flex-shrink-0 ${statsDeckSwitcherVisible ? 'rotate-180' : ''}" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg></button><div id="deck-switcher-dropdown" class="${statsDeckSwitcherVisible ? '' : 'hidden'} absolute top-full left-0 mt-2 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-xl border dark:border-gray-700 z-20 overflow-hidden"><ul class="max-h-80 overflow-y-auto"><li><button data-action="switch-stats-deck" data-deck-id="all" class="w-full text-left px-4 py-3 text-sm font-semibold hover:bg-blue-50 dark:hover:bg-blue-900/40 transition-colors ${isAllDecksView ? 'text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'}">${t('allDecks')}</button></li>${CLASSES.map(cls => { const isSelected = deckId === `all-${cls}`; const translatedClassName = getTranslatedClassName(cls); const coloredTranslatedClassName = `<span class="${classStyles[cls].text}">${translatedClassName}</span>`; return `<li><button data-action="switch-stats-deck" data-deck-id="all-${cls}" class="w-full text-left px-4 py-3 text-sm hover:bg-blue-50 dark:hover:bg-blue-900/40 transition-colors ${isSelected ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-gray-700 dark:text-gray-300'}">${t('allClassDecks', {class: coloredTranslatedClassName})}</button></li>`; }).join('')}${state.decks.length > 0 ? `<li class="border-t border-gray-200 dark:border-gray-700"></li>` : ''}${state.decks.map(d => `<li><button data-action="switch-stats-deck" data-deck-id="${d.id}" class="w-full text-left px-4 py-3 text-sm hover:bg-blue-50 dark:hover:bg-blue-900/40 transition-colors ${d.id === deckId ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-gray-700 dark:text-gray-300'}">${d.name} <span class="text-xs ${classStyles[d.class].text}">(${getTranslatedClassName(d.class)})</span></button></li>`).join('')}</ul></div></div></div><div class="flex items-center gap-2 flex-shrink-0"><button data-action="open-tag-filter-modal" id="toggle-tag-filter-btn" title="${t('filterByTags')}" class="p-2 rounded-md text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 8 0 013 8v-5z" /></svg></button><div class="relative"><button data-action="toggle-date-filter" id="toggle-date-filter-btn" title="${t('toggleDateFilter')}" class="p-2 rounded-md text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg></button><div id="date-filter-card" class="${dateFilterVisible ? '' : 'hidden'} absolute top-full right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl border dark:border-gray-700 z-20 p-4"><p class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">${t('toggleDateFilter')}</p><form id="date-filter-form" class="space-y-3"><div><label for="start-date" class="block text-xs font-medium text-gray-600 dark:text-gray-400">${t('from')}</label><input type="date" id="start-date" name="start-date" value="${dateFilter.start || ''}" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white text-black"></div><div><label for="end-date" class="block text-xs font-medium text-gray-600 dark:text-gray-400">${t('to')}</label><input type="date" id="end-date" name="end-date" value="${dateFilter.end || ''}" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white text-black"></div><div class="flex items-center justify-end gap-2 pt-2"><button type="button" data-action="clear-date-filter" id="clear-date-filter-btn" class="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-400">${t('clear')}</button><button type="submit" class="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">${t('apply')}</button></div></form></div></div></div></div><div class="mt-1 min-h-[1.25rem]">${filtersActiveHTML()}</div></div>${displayDeck.games.length === 0 ? `<div class="text-center bg-white dark:bg-gray-800 rounded-lg shadow-md border-2 border-dashed border-gray-300 dark:border-gray-600 p-12 mt-1"><h3 class="text-sm font-medium text-gray-900 dark:text-gray-200">${t('noGames')}</h3><p class="mt-1 text-sm text-gray-500 dark:text-gray-400">${t('noGamesHint')}</p></div>` : `<div class="mt-1 grid grid-cols-1 xl:grid-cols-2 gap-8 items-start"><div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6"><div class="flex flex-col md:flex-row items-center justify-around gap-6"><div class="flex-shrink-0 w-full md:w-60">${statsLayoutHTML}</div><div class="flex-grow flex justify-center">${renderChartContainer()}</div></div><div class="mt-6"><div class="flex justify-end items-center mb-2 h-5">${filterClass ? `<button data-action="clear-class-filter" class="text-xs text-blue-500 hover:underline">${t('showAllClasses')}</button>` : ''}</div><div class="grid grid-cols-4 text-xs text-gray-500 dark:text-gray-400 font-medium px-2 pb-1 border-b dark:border-gray-700"><span class="col-span-2">${t('opponent')}</span><span class="text-center col-span-1">${t('playRate')}</span><span class="text-right col-span-1">${t('winRate')}</span></div><div class="space-y-1 mt-2">${opponentBreakdownHTML}</div></div></div><div class="bg-white dark:bg-gray-800 rounded-lg shadow-md"><h3 class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4 px-6 pt-6">${t('matchHistory')} ${filterClass ? t('vs', {name: getTranslatedClassName(filterClass)}): ''}</h3><div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"><ul id="recent-matches-list" class="divide-y divide-gray-100 dark:divide-gray-700">${recentMatchesHTML || `<li class="p-4 text-center text-gray-500 dark:text-gray-400">${t('noMatchesFilter')}</li>`}</ul></div>${paginationControlsHTML()}</div></div>`}</main>`;
+    appContainer.innerHTML = `<main class="w-full max-w-7xl mx-auto"><div class="relative"><div class="flex justify-between items-center gap-2"><div class="flex items-center gap-2 min-w-0"><button data-action="back-to-decks" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"><svg class="w-4 h-4 pointer-events-none" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>${t('back')}</button><div class="relative flex-1 min-w-0 ml-2"><button data-action="toggle-deck-switcher" id="deck-switcher-btn" class="flex w-full items-center gap-2 p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700/50 transition-colors"><h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100 truncate" title="${displayDeck.name}">${t('statsFor', {name: `<span class="${classStyles[displayDeck.class].text}">${displayDeck.name}</span>`})}</h2><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 dark:text-gray-400 transition-transform flex-shrink-0 ${statsDeckSwitcherVisible ? 'rotate-180' : ''}" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg></button><div id="deck-switcher-dropdown" class="${statsDeckSwitcherVisible ? '' : 'hidden'} absolute top-full left-0 mt-2 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-xl border dark:border-gray-700 z-20 overflow-hidden"><ul class="max-h-80 overflow-y-auto"><li><button data-action="switch-stats-deck" data-deck-id="all" class="w-full text-left px-4 py-3 text-sm font-semibold hover:bg-blue-50 dark:hover:bg-blue-900/40 transition-colors ${isAllDecksView ? 'text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'}">${allText}</button></li>${isNormalMode ? CLASSES.map(cls => { const isSelected = deckId === `all-${cls}`; const translatedClassName = getTranslatedClassName(cls); const coloredTranslatedClassName = `<span class="${classStyles[cls].text}">${translatedClassName}</span>`; return `<li><button data-action="switch-stats-deck" data-deck-id="all-${cls}" class="w-full text-left px-4 py-3 text-sm hover:bg-blue-50 dark:hover:bg-blue-900/40 transition-colors ${isSelected ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-gray-700 dark:text-gray-300'}">${t('allClassDecks', {class: coloredTranslatedClassName})}</button></li>`; }).join('') : ''}${isNormalMode && availableDecks.length > 0 ? `<li class="border-t border-gray-200 dark:border-gray-700"></li>` : ''}${availableDecks.map(d => `<li><button data-action="switch-stats-deck" data-deck-id="${d.id}" class="w-full text-left px-4 py-3 text-sm hover:bg-blue-50 dark:hover:bg-blue-900/40 transition-colors ${d.id === deckId ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-gray-700 dark:text-gray-300'}">${d.name} <span class="text-xs ${classStyles[d.class].text}">(${getTranslatedClassName(d.class)})</span></button></li>`).join('')}</ul></div></div></div><div class="flex items-center gap-2 flex-shrink-0"><button data-action="open-tag-filter-modal" id="toggle-tag-filter-btn" title="${t('filterByTags')}" class="p-2 rounded-md text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 8 0 013 8v-5z" /></svg></button><div class="relative"><button data-action="toggle-date-filter" id="toggle-date-filter-btn" title="${t('toggleDateFilter')}" class="p-2 rounded-md text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg></button><div id="date-filter-card" class="${dateFilterVisible ? '' : 'hidden'} absolute top-full right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl border dark:border-gray-700 z-20 p-4"><p class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">${t('toggleDateFilter')}</p><form id="date-filter-form" class="space-y-3"><div><label for="start-date" class="block text-xs font-medium text-gray-600 dark:text-gray-400">${t('from')}</label><input type="date" id="start-date" name="start-date" value="${dateFilter.start || ''}" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white text-black"></div><div><label for="end-date" class="block text-xs font-medium text-gray-600 dark:text-gray-400">${t('to')}</label><input type="date" id="end-date" name="end-date" value="${dateFilter.end || ''}" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white text-black"></div><div class="flex items-center justify-end gap-2 pt-2"><button type="button" data-action="clear-date-filter" id="clear-date-filter-btn" class="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-400">${t('clear')}</button><button type="submit" class="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">${t('apply')}</button></div></form></div></div></div></div><div class="mt-1 min-h-[1.25rem]">${filtersActiveHTML()}</div></div>${displayDeck.games.length === 0 ? `<div class="text-center bg-white dark:bg-gray-800 rounded-lg shadow-md border-2 border-dashed border-gray-300 dark:border-gray-600 p-12 mt-1"><h3 class="text-sm font-medium text-gray-900 dark:text-gray-200">${t('noGames')}</h3><p class="mt-1 text-sm text-gray-500 dark:text-gray-400">${t('noGamesHint')}</p></div>` : `<div class="mt-1 grid grid-cols-1 xl:grid-cols-2 gap-8 items-start"><div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6"><div class="flex flex-col md:flex-row items-center justify-around gap-6"><div class="flex-shrink-0 w-full md:w-60">${statsLayoutHTML}</div><div class="flex-grow flex justify-center">${renderChartContainer()}</div></div><div class="mt-6"><div class="flex justify-end items-center mb-2 h-5">${filterClass ? `<button data-action="clear-class-filter" class="text-xs text-blue-500 hover:underline">${t('showAllClasses')}</button>` : ''}</div><div class="grid grid-cols-4 text-xs text-gray-500 dark:text-gray-400 font-medium px-2 pb-1 border-b dark:border-gray-700"><span class="col-span-2">${t('opponent')}</span><span class="text-center col-span-1">${t('playRate')}</span><span class="text-right col-span-1">${t('winRate')}</span></div><div class="space-y-1 mt-2">${opponentBreakdownHTML}</div></div></div><div class="bg-white dark:bg-gray-800 rounded-lg shadow-md"><h3 class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4 px-6 pt-6">${t('matchHistory')} ${filterClass ? t('vs', {name: getTranslatedClassName(filterClass)}): ''}</h3><div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"><ul id="recent-matches-list" class="divide-y divide-gray-100 dark:divide-gray-700">${recentMatchesHTML || `<li class="p-4 text-center text-gray-500 dark:text-gray-400">${t('noMatchesFilter')}</li>`}</ul></div>${paginationControlsHTML()}</div></div>`}</main>`;
 };
 
 const renderTagFilterModalContent = () => {
@@ -1441,12 +1461,25 @@ const renderModals = () => {
     document.querySelector('#add-deck-modal #cancel-deck-button').textContent = t('cancel');
     document.querySelector('#add-deck-modal #save-deck-button').textContent = t('saveDeck');
 
-    // Delete Deck Modal
-    document.querySelector('#delete-deck-confirm-modal #delete-deck-modal-title').textContent = t('deleteDeckTitle');
-    const deckToDelete = state.deckToDeleteId ? state.decks.find(d => d.id === state.deckToDeleteId) : null;
+    // Delete Deck / Reset Class Modal
+    const isTakeTwoMode = state.mode === 'takeTwo';
+    const deckList = isTakeTwoMode ? state.takeTwoDecks : state.decks;
+    const deckToDelete = state.deckToDeleteId ? deckList.find(d => d.id === state.deckToDeleteId) : null;
     const deckNameToDelete = deckToDelete ? deckToDelete.name : '';
-    document.querySelector('#delete-deck-confirm-modal p.text-sm').innerHTML = t('deleteDeckConfirm', {name: `<strong id="deck-to-delete-name" class="font-semibold text-gray-600 dark:text-gray-300 inline-block max-w-full sm:max-w-xs truncate align-bottom" title="${deckNameToDelete}">${deckNameToDelete}</strong>`});
-    document.querySelector('#delete-deck-confirm-modal #confirm-delete-deck-button').textContent = t('delete');
+    
+    const deleteModalTitle = document.querySelector('#delete-deck-confirm-modal #delete-deck-modal-title');
+    const deleteModalText = document.querySelector('#delete-deck-confirm-modal p.text-sm');
+    const confirmDeleteBtn = document.querySelector('#delete-deck-confirm-modal #confirm-delete-deck-button');
+
+    if (isTakeTwoMode) {
+        deleteModalTitle.textContent = t('resetClassTitle');
+        deleteModalText.innerHTML = t('resetClassConfirm', { name: `<strong class="font-semibold text-gray-600 dark:text-gray-300">${deckNameToDelete}</strong>` });
+        confirmDeleteBtn.textContent = t('reset');
+    } else {
+        deleteModalTitle.textContent = t('deleteDeckTitle');
+        deleteModalText.innerHTML = t('deleteDeckConfirm', {name: `<strong id="deck-to-delete-name" class="font-semibold text-gray-600 dark:text-gray-300 inline-block max-w-full sm:max-w-xs truncate align-bottom" title="${deckNameToDelete}">${deckNameToDelete}</strong>`});
+        confirmDeleteBtn.textContent = t('delete');
+    }
     document.querySelector('#delete-deck-confirm-modal #cancel-delete-deck-button').textContent = t('cancel');
     
     // Delete Tag Modal
@@ -1493,7 +1526,7 @@ const renderModals = () => {
     // Deck Notes Modal
     const { deckId, isEditing } = state.deckNotesState;
     if (deckId) {
-        const deck = state.decks.find(d => d.id === deckId);
+        const deck = deckList.find(d => d.id === deckId);
         if (deck) {
             const titleEl = deckNotesModal.querySelector('#deck-notes-modal-title');
             const contentEl = deckNotesModal.querySelector('#deck-notes-content');
@@ -1536,7 +1569,7 @@ const renderModals = () => {
     // Match Info Modal
     const matchInfoToShow = state.matchInfoToShow;
     if (matchInfoToShow) {
-        const deck = state.decks.find(d => d.id === matchInfoToShow.deckId);
+        const deck = deckList.find(d => d.id === matchInfoToShow.deckId);
         const game = deck?.games.find(g => g.id === matchInfoToShow.gameId);
         const contentEl = matchInfoModal.querySelector('#match-info-content');
         
