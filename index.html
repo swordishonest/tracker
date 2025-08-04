@@ -90,6 +90,43 @@
         </div>
     </div>
     
+    <!-- Add Result Modal -->
+    <div id="add-result-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4" aria-modal="true" role="dialog" aria-labelledby="add-result-modal-title">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md transform transition-all duration-300 scale-95 opacity-0 animate-fade-in-up">
+             <form id="add-result-form">
+                <div class="p-6">
+                    <h2 id="add-result-modal-title" class="text-2xl font-bold text-gray-800 dark:text-gray-100">Add Take Two Result</h2>
+                    <div class="mt-4">
+                         <label id="result-class-label" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Class</label>
+                         <div id="modal-result-class-selector-container">
+                            <!-- Class selector will be rendered here by JS -->
+                         </div>
+                    </div>
+                    <div class="mt-4">
+                         <label id="result-wins-label" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Wins</label>
+                         <div id="modal-wins-selector-container" class="grid grid-cols-4 gap-2 mt-2">
+                            <!-- Wins selector will be rendered here by JS -->
+                         </div>
+                    </div>
+                    <div class="mt-4">
+                         <label id="result-losses-label" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Losses</label>
+                         <div id="modal-losses-selector-container" class="grid grid-cols-3 gap-2 mt-2">
+                            <!-- Losses selector will be rendered here by JS -->
+                         </div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-700/50 px-6 py-4 flex justify-end items-center space-x-3 rounded-b-lg">
+                    <button type="button" data-action="close-add-result-modal" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">
+                        Cancel
+                    </button>
+                    <button type="submit" id="save-result-button" class="px-4 py-2 bg-gray-400 text-white font-semibold rounded-md shadow-sm cursor-not-allowed" disabled>
+                        Save Result
+                    </button>
+                </div>
+             </form>
+        </div>
+    </div>
+
     <!-- Delete Deck Confirmation Modal -->
     <div id="delete-deck-confirm-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4" aria-modal="true" role="dialog" aria-labelledby="delete-deck-modal-title">
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md transform transition-all duration-300 scale-95 opacity-0 animate-fade-in-up">

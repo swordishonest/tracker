@@ -37,6 +37,7 @@ export const translations = {
         'resetClassTitle': 'Reset Class Data',
         'resetClassAria': 'Reset data for class {name}',
         'resetClassConfirm': 'Are you sure you want to reset all Take Two matches for {name}? This cannot be undone.',
+        'addResult': 'Add Result',
         // Modals
         'deckName': 'Deck Name', 'deckNamePlaceholder': 'e.g. Aggro Forest', 'saveDeck': 'Save Deck',
         'deleteDeckTitle': 'Delete Deck',
@@ -48,6 +49,7 @@ export const translations = {
         'resetTitle': 'Reset All Data',
         'resetConfirm': 'Are you sure you want to reset all data? All decks, match history, tags, and Take Two records will be permanently deleted. This action cannot be undone.',
         'matchDetails': 'Match Details', 'recordedAt': 'Recorded at', 'noTagsForMatch': 'No tags were added to this match.',
+        'addTakeTwoResultTitle': 'Add Take Two Result', 'saveResult': 'Save Result',
         // Add Game
         'addGameTitle': 'Add Game for {name}',
         'opponentClass': "Opponent's Class", 'turn': 'Turn', 'result': 'Result',
@@ -67,6 +69,7 @@ export const translations = {
         'vs': '(vs {name})', 'wentTurn': 'Went {turn}', 'matchAriaDelete': 'Delete match', 'matchInfo': 'Match info',
         'noMatchesFilter': 'No matches found for this filter.',
         'barChartTitle': 'Win Rate vs Opponent', 'pieChartTitle': 'Opponent Play Rate', 'toggleChartType': 'Toggle chart type',
+        'averageWins': 'Average Wins', 'winsHistogramTitle': 'Wins Distribution',
         'paginationResults': 'Showing <span class="font-medium">{from}</span> to <span class="font-medium">{to}</span> of <span class="font-medium">{total}</span> results',
         'paginationPrevious': 'Previous',
         'paginationNext': 'Next',
@@ -99,6 +102,7 @@ export const translations = {
         'resetClassTitle': 'クラスデータのリセット',
         'resetClassAria': 'クラス「{name}」のデータをリセット',
         'resetClassConfirm': 'クラス「{name}」の2Pick対戦記録をすべてリセットしますか？この操作は元に戻せません。',
+        'addResult': '結果を追加',
         'deckName': 'デッキ名', 'deckNamePlaceholder': '例: アグロエルフ', 'saveDeck': 'デッキを保存',
         'deleteDeckTitle': 'デッキを削除',
         'deleteDeckConfirm': 'デッキ「{name}」を削除しますか？関連するすべての対戦データが完全に削除されます。この操作は元に戻せません。',
@@ -109,6 +113,7 @@ export const translations = {
         'resetTitle': 'すべてのデータをリセット',
         'resetConfirm': 'すべてのデータをリセットしますか？すべてのデッキ、対戦履歴、タグ、2Pickの記録が完全に削除されます。この操作は元に戻せません。',
         'matchDetails': '対戦の詳細', 'recordedAt': '記録日時', 'noTagsForMatch': 'この対戦にはタグが追加されていません。',
+        'addTakeTwoResultTitle': '2Pickの結果を追加', 'saveResult': '結果を保存',
         'addGameTitle': '{name}の対戦を追加',
         'opponentClass': '対戦相手のクラス', 'turn': '先行/後攻', 'result': '勝敗',
         'saveGame': '対戦を記録', 'gameSaved': '対戦を記録しました！',
@@ -126,6 +131,7 @@ export const translations = {
         'vs': ' (vs {name})', 'wentTurn': '{turn}', 'matchAriaDelete': '対戦を削除', 'matchInfo': '対戦情報',
         'noMatchesFilter': 'このフィルターに一致する対戦はありません。',
         'barChartTitle': 'クラス別勝率', 'pieChartTitle': 'クラス別使用率', 'toggleChartType': 'グラフの種類を切り替え',
+        'averageWins': '平均勝利数', 'winsHistogramTitle': '勝利数分布',
         'paginationResults': '全<span class="font-medium">{total}</span>件中 <span class="font-medium">{from}</span>〜<span class="font-medium">{to}</span>件を表示',
         'paginationPrevious': '前へ',
         'paginationNext': '次へ',
@@ -172,6 +178,7 @@ export let state = {
     globalTagFilter: { my: { include: [], exclude: [] }, opp: { include: [], exclude: [] } },
     addGameTagsExpanded: false,
     newDeckClass: null,
+    newTakeTwoResult: { class: null, wins: null, losses: null },
     deckToDeleteId: null,
     tagToDeleteId: null,
     tagToMerge: null, // { sourceTag: obj, targetTag: obj }
@@ -212,6 +219,10 @@ export const setDeckNotesState = (newState) => {
 
 export const setNewDeckClass = (cls) => {
     state.newDeckClass = cls;
+};
+
+export const setNewTakeTwoResult = (result) => {
+    state.newTakeTwoResult = result;
 };
 
 export const setDeckToDeleteId = (id) => {
@@ -301,6 +312,10 @@ export const initializeTakeTwoDecks = () => {
                 deck.name = translatedName;
                 needsSave = true;
             }
+            if (!deck.runs) {
+                deck.runs = [];
+                needsSave = true;
+            }
             newDecks.push(deck);
         } else {
             newDecks.push({
@@ -308,6 +323,7 @@ export const initializeTakeTwoDecks = () => {
                 name: translatedName,
                 class: cls,
                 games: [],
+                runs: [],
                 notes: '',
             });
             needsSave = true;

@@ -1,3 +1,4 @@
+
 import { CLASSES, CLASS_NAMES, getTranslated } from './store.js';
 
 const cache = new Map();
@@ -82,17 +83,20 @@ export const getStatsForView = (view, decks, tags, t, language, mode) => {
         const targetClass = view.deckId.substring(4);
         const classDecks = decks.filter(d => d.class === targetClass);
         const allClassGames = classDecks.flatMap(d => d.games.map(g => ({...g, originalDeckId: d.id, originalDeckClass: d.class})));
+        const allClassRuns = mode === 'takeTwo' ? classDecks.flatMap(d => d.runs || []) : [];
         const translatedClassName = getTranslated(CLASS_NAMES, targetClass);
         displayDeck = {
             id: view.deckId,
             name: t('allClassDecks', { class: translatedClassName }),
             class: targetClass,
-            games: allClassGames
+            games: allClassGames,
+            runs: allClassRuns
         };
     } else if (isAllDecksView) {
         const allGames = decks.flatMap(d => d.games.map(g => ({...g, originalDeckId: d.id, originalDeckClass: d.class})));
+        const allRuns = mode === 'takeTwo' ? decks.flatMap(d => d.runs || []) : [];
         const name = mode === 'takeTwo' ? t('allClasses') : t('allDecks');
-        displayDeck = { id: 'all', name, class: 'All', games: allGames };
+        displayDeck = { id: 'all', name, class: 'All', games: allGames, runs: allRuns };
     } else {
         displayDeck = decks.find(d => d.id === view.deckId);
     }
@@ -173,6 +177,23 @@ export const getStatsForView = (view, decks, tags, t, language, mode) => {
         return acc;
     }, {});
     
+    // Take Two Specific Stats
+    let averageWins = t('na');
+    let winDistribution = Array(8).fill(0); // for 0 to 7 wins
+    if (mode === 'takeTwo' && displayDeck.runs && displayDeck.runs.length > 0) {
+        const runs = displayDeck.runs;
+        const totalRuns = runs.length;
+        if (totalRuns > 0) {
+            const totalWins = runs.reduce((sum, run) => sum + run.wins, 0);
+            averageWins = (totalWins / totalRuns).toFixed(2);
+            runs.forEach(run => {
+                if (run.wins >= 0 && run.wins <= 7) {
+                    winDistribution[run.wins]++;
+                }
+            });
+        }
+    }
+
     const sortedGames = [...filteredDeckGames].sort((a, b) => b.timestamp - a.timestamp);
 
     const result = {
@@ -182,6 +203,8 @@ export const getStatsForView = (view, decks, tags, t, language, mode) => {
         winRateByClass,
         sortedGames,
         filteredDeckGamesCount,
+        averageWins,
+        winDistribution,
     };
 
     cache.set(cacheKey, result);

@@ -1,11 +1,12 @@
 
 
-import { state, CLASSES, classStyles, CLASS_NAMES, TURN_NAMES, RESULT_NAMES, translations, getTranslated, setDeckNotesState, setNewDeckClass, getTranslatedClassName, setTagToDeleteId, setTagToMerge, addTag, updateTagUsage } from './store.js';
+import { state, CLASSES, classStyles, CLASS_NAMES, TURN_NAMES, RESULT_NAMES, translations, getTranslated, setDeckNotesState, setNewDeckClass, getTranslatedClassName, setTagToDeleteId, setTagToMerge, addTag, updateTagUsage, setNewTakeTwoResult } from './store.js';
 import { getStatsForView } from './calculator.js';
 
 // --- DOM CACHE ---
 const appContainer = document.getElementById('app');
 const addDeckModal = document.getElementById('add-deck-modal');
+const addResultModal = document.getElementById('add-result-modal');
 const deleteDeckConfirmModal = document.getElementById('delete-deck-confirm-modal');
 const deleteMatchConfirmModal = document.getElementById('delete-match-confirm-modal');
 const deleteTagConfirmModal = document.getElementById('delete-tag-confirm-modal');
@@ -77,6 +78,24 @@ export const checkDeckFormValidity = () => {
     }
 };
 
+const checkResultFormValidity = () => {
+    const saveResultButton = document.getElementById('save-result-button');
+    if (!saveResultButton) return;
+
+    const { class: selectedClass, wins, losses } = state.newTakeTwoResult;
+    const isClassValid = selectedClass !== null;
+    const isWinsValid = wins !== null;
+    const isLossesValid = losses !== null;
+    
+    if (isClassValid && isWinsValid && isLossesValid) {
+        saveResultButton.disabled = false;
+        saveResultButton.className = 'px-4 py-2 bg-blue-600 text-white font-semibold rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2';
+    } else {
+        saveResultButton.disabled = true;
+        saveResultButton.className = 'px-4 py-2 bg-gray-400 text-white font-semibold rounded-md shadow-sm cursor-not-allowed';
+    }
+};
+
 const createClassSelector = (selectedClass, onSelectCallback, namePrefix = '') => {
     const container = document.createElement('div');
     container.className = 'grid grid-cols-4 gap-2 mt-2';
@@ -140,6 +159,84 @@ const renderModalClassSelector = () => {
     modalClassSelectorContainer.appendChild(selector);
 };
 
+const renderAddResultModal = () => {
+    // Localize static text
+    document.getElementById('add-result-modal-title').textContent = t('addTakeTwoResultTitle');
+    document.getElementById('result-class-label').textContent = t('class');
+    document.getElementById('result-wins-label').textContent = t('wins');
+    document.getElementById('result-losses-label').textContent = t('losses');
+    addResultModal.querySelector('[data-action="close-add-result-modal"]').textContent = t('cancel');
+    document.getElementById('save-result-button').textContent = t('saveResult');
+
+    // Class selector
+    const classContainer = document.getElementById('modal-result-class-selector-container');
+    classContainer.innerHTML = '';
+    const classSelector = createClassSelector(state.newTakeTwoResult.class, (cls) => {
+        setNewTakeTwoResult({ ...state.newTakeTwoResult, class: cls });
+        renderAddResultModal();
+        checkResultFormValidity();
+    });
+    const neutralButton = Array.from(classSelector.children).find(child => (child.textContent || child.querySelector('label')?.textContent) === getTranslatedClassName('Neutral'));
+    if (neutralButton) neutralButton.remove();
+    classContainer.appendChild(classSelector);
+
+    // Wins selector
+    const winsContainer = document.getElementById('modal-wins-selector-container');
+    winsContainer.innerHTML = '';
+    for (let i = 0; i <= 7; i++) {
+        const isSelected = state.newTakeTwoResult.wins === i;
+        const isDisabled = state.newTakeTwoResult.losses === 2 && i === 7;
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = i;
+        button.dataset.value = i;
+        button.disabled = isDisabled;
+        button.className = `w-full text-center px-2 py-2 text-sm font-medium rounded-md focus:outline-none transition-all duration-150 transform hover:-translate-y-px focus:ring-2 focus:ring-offset-2 ring-blue-500 ${
+            isSelected
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+        } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`;
+        button.addEventListener('click', () => {
+            let newLosses = state.newTakeTwoResult.losses;
+            if (i === 7 && newLosses === 2) {
+                newLosses = null;
+            }
+            setNewTakeTwoResult({ ...state.newTakeTwoResult, wins: i, losses: newLosses });
+            renderAddResultModal();
+            checkResultFormValidity();
+        });
+        winsContainer.appendChild(button);
+    }
+
+    // Losses selector
+    const lossesContainer = document.getElementById('modal-losses-selector-container');
+    lossesContainer.innerHTML = '';
+    for (let i = 0; i <= 2; i++) {
+        const isSelected = state.newTakeTwoResult.losses === i;
+        const isDisabled = state.newTakeTwoResult.wins === 7 && i === 2;
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = i;
+        button.dataset.value = i;
+        button.disabled = isDisabled;
+        button.className = `w-full text-center px-2 py-2 text-sm font-medium rounded-md focus:outline-none transition-all duration-150 transform hover:-translate-y-px focus:ring-2 focus:ring-offset-2 ring-blue-500 ${
+            isSelected
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+        } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`;
+        button.addEventListener('click', () => {
+            let newWins = state.newTakeTwoResult.wins;
+            if (i === 2 && newWins === 7) {
+                newWins = null;
+            }
+            setNewTakeTwoResult({ ...state.newTakeTwoResult, losses: i, wins: newWins });
+            renderAddResultModal();
+            checkResultFormValidity();
+        });
+        lossesContainer.appendChild(button);
+    }
+};
+
 export const openAddDeckModal = () => {
     document.getElementById('deckName').value = '';
     setNewDeckClass(null);
@@ -151,6 +248,18 @@ export const openAddDeckModal = () => {
 export const closeAddDeckModal = () => {
     addDeckModal.classList.add('hidden');
     addDeckModal.querySelector('div').classList.remove('animate-fade-in-up');
+};
+export const openAddResultModal = () => {
+    setNewTakeTwoResult({ class: null, wins: null, losses: null });
+    renderAddResultModal();
+    checkResultFormValidity();
+    addResultModal.classList.remove('hidden');
+    addResultModal.querySelector('div').classList.add('animate-fade-in-up');
+};
+export const closeAddResultModal = () => {
+    addResultModal.classList.add('hidden');
+    addResultModal.querySelector('div').classList.remove('animate-fade-in-up');
+    setNewTakeTwoResult({ class: null, wins: null, losses: null });
 };
 export const openDeleteDeckModal = (deckId) => {
     state.deckToDeleteId = deckId;
@@ -381,7 +490,17 @@ const renderDeckList = () => {
     const moonIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 pointer-events-none" viewBox="0 0 20 20" fill="currentColor"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" /></svg>`;
     const sunIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>`;
 
-    const hasAnyData = state.decks.length > 0 || state.takeTwoDecks.some(d => d.games.length > 0) || state.tags.length > 0;
+    const hasAnyData = state.decks.length > 0 || state.takeTwoDecks.some(d => d.games.length > 0 || (d.runs && d.runs.length > 0)) || state.tags.length > 0;
+    
+    const primaryActionHTML = isTakeTwoMode ? `
+        <button data-action="open-add-result-modal" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition-transform transform hover:scale-105">
+            ${t('addResult')}
+        </button>
+    ` : `
+        <button data-action="open-add-deck-modal" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition-transform transform hover:scale-105">
+            ${t('addNewDeck')}
+        </button>
+    `;
 
     appContainer.innerHTML = `
         <main class="w-full max-w-7xl mx-auto">
@@ -406,11 +525,7 @@ const renderDeckList = () => {
                     <button data-action="toggle-mode" class="px-4 py-2 text-sm font-medium text-purple-700 bg-purple-100 rounded-md hover:bg-purple-200 dark:bg-purple-900/50 dark:text-purple-300 dark:hover:bg-purple-900 focus:outline-none focus:ring-2 focus:ring-purple-400">
                         ${isTakeTwoMode ? t('normalMode') : t('takeTwoMode')}
                     </button>
-                    ${!isTakeTwoMode ? `
-                    <button data-action="open-add-deck-modal" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75 transition-transform transform hover:scale-105">
-                        ${t('addNewDeck')}
-                    </button>
-                    ` : ''}
+                    ${primaryActionHTML}
                 </div>
                 <div class="mt-10">${contentHTML}</div>
                 <p class="mt-8 text-center text-base text-gray-500 dark:text-gray-400">${t('appSubtitle')}</p>
@@ -936,7 +1051,9 @@ const renderStatsView = (deckId) => {
         totalStatsForPie,
         winRateByClass,
         sortedGames,
-        filteredDeckGamesCount
+        filteredDeckGamesCount,
+        averageWins,
+        winDistribution,
     } = calculatedData;
     
     const { filterClass, dateFilter, tagFilter, statsDeckSwitcherVisible, dateFilterVisible, chartType, currentPage = 1 } = state.view;
@@ -1000,10 +1117,55 @@ const renderStatsView = (deckId) => {
         return `<div class="relative w-full" aria-label="${t('barChartTitle')}"><svg width="100%" viewBox="0 0 ${width} ${height}" style="aspect-ratio: ${width} / ${height}; max-height: 240px;"><title>${t('barChartTitle')}</title>${yAxisHTML}${barsHTML}</svg></div>`;
     };
     
+    const renderHistogramChart = (winDistribution) => {
+        const totalRuns = winDistribution.reduce((a, b) => a + b, 0);
+        if (totalRuns === 0) {
+            return `<div class="w-full h-[240px] flex items-center justify-center text-gray-400">${t('na')}</div>`;
+        }
+
+        const width = 400; const height = 240;
+        const margin = { top: 20, right: 10, bottom: 25, left: 35 };
+        const chartWidth = width - margin.left - margin.right;
+        const chartHeight = height - margin.top - margin.bottom;
+
+        const maxCount = Math.max(...winDistribution);
+        const yAxisLabelsCount = Math.min(maxCount, 5);
+        const yAxisLabels = Array.from({ length: yAxisLabelsCount + 1 }, (_, i) => Math.round(i * (maxCount / yAxisLabelsCount)));
+
+        const yAxisHTML = yAxisLabels.map(label => {
+            if (isNaN(label)) return '';
+            const yPos = margin.top + chartHeight - (label / maxCount) * chartHeight;
+            return `<g transform="translate(0, ${yPos})"><line x1="${margin.left}" x2="${margin.left + chartWidth}" stroke="${document.documentElement.classList.contains('dark') ? '#4b5563' : '#e5e7eb'}" stroke-width="1"></line><text x="${margin.left - 8}" y="4" text-anchor="end" font-size="12" class="fill-gray-500 dark:fill-gray-400">${label}</text></g>`;
+        }).join('');
+        
+        const barWidth = chartWidth / 8; // For 8 bars (0-7 wins)
+        const barsHTML = winDistribution.map((count, i) => {
+            if (count === 0) return '';
+            const barHeight = (count / maxCount) * chartHeight;
+            return `<g class="transition-all duration-300" transform="translate(${margin.left + i * barWidth}, 0)">
+                <rect x="${barWidth * 0.1}" y="${margin.top + chartHeight - barHeight}" width="${barWidth * 0.8}" height="${barHeight}" rx="2" fill="#93c5fd"><title>${i} ${t('wins')}: ${count}</title></rect>
+            </g>`;
+        }).join('');
+
+        const xAxisLabelsHTML = winDistribution.map((_, i) =>
+            `<text x="${margin.left + i * barWidth + barWidth / 2}" y="${margin.top + chartHeight + 15}" text-anchor="middle" font-size="12" class="fill-gray-500 dark:fill-gray-400">${i}</text>`
+        ).join('');
+        
+        return `<div class="relative w-full" aria-label="${t('winsHistogramTitle')}">
+            <svg width="100%" viewBox="0 0 ${width} ${height}" style="aspect-ratio: ${width} / ${height}; max-height: 240px;">
+                <title>${t('winsHistogramTitle')}</title>
+                ${yAxisHTML}
+                ${barsHTML}
+                ${xAxisLabelsHTML}
+            </svg>
+        </div>`;
+    };
+
     const renderChartContainer = () => {
-        const chartTitle = chartType === 'bar' ? t('barChartTitle') : t('pieChartTitle');
-        const chartHTML = chartType === 'bar' ? renderBarChart(winRateByClass, filterClass) : renderPieChart(totalStatsForPie.opponentDistribution, filteredDeckGamesCount, filterClass);
-        const wrapperClasses = chartType === 'bar' ? 'w-full' : 'inline-block';
+        const isTakeTwo = state.mode === 'takeTwo';
+        const chartTitle = chartType === 'bar' ? t('barChartTitle') : (isTakeTwo && chartType === 'histogram' ? t('winsHistogramTitle') : t('pieChartTitle'));
+        const chartHTML = chartType === 'bar' ? renderBarChart(winRateByClass, filterClass) : (isTakeTwo && chartType === 'histogram' ? renderHistogramChart(winDistribution) : renderPieChart(totalStatsForPie.opponentDistribution, filteredDeckGamesCount, filterClass));
+        const wrapperClasses = chartType === 'pie' ? 'inline-block' : 'w-full';
         return `<div class="text-center ${wrapperClasses}"><h4 class="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-2">${chartTitle}</h4><div data-action="toggle-chart-type" role="button" tabindex="0" aria-label="${t('toggleChartType')}" class="cursor-pointer p-1 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">${chartHTML}</div></div>`;
     };
 
@@ -1051,7 +1213,8 @@ const renderStatsView = (deckId) => {
         return `<nav class="flex items-center justify-between border-t border-gray-200 dark:border-gray-700 px-4 py-3 sm:px-6"><div class="hidden sm:block"><p class="text-sm text-gray-700 dark:text-gray-400">${t('paginationResults', { from: showingFrom, to: showingTo, total: totalGames })}</p></div><div class="flex-1 flex justify-between sm:justify-end gap-2"><button data-action="prev-page" class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed" ${currentPage <= 1 ? 'disabled' : ''}>${t('paginationPrevious')}</button><button data-action="next-page" class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed" ${currentPage >= totalPages ? 'disabled' : ''}>${t('paginationNext')}</button></div></nav>`;
     };
     
-    const statsLayoutHTML = `<div class="flex flex-wrap justify-around items-start text-center gap-y-4 md:grid md:grid-cols-[max-content,auto] md:gap-x-4 md:gap-y-3 md:text-left"><div class="md:contents"><p class="text-sm text-gray-500 dark:text-gray-400 md:text-right md:font-semibold md:self-center">${t('winRate')}</p><div><p class="text-lg font-bold text-gray-800 dark:text-gray-100">${stats.winRate}</p><p class="text-xs text-gray-400 dark:text-gray-500">${stats.wins}${t('winsShort')} / ${stats.losses}${t('lossesShort')}</p></div></div><div class="md:contents"><p class="text-sm text-gray-500 dark:text-gray-400 md:text-right md:font-semibold md:self-center">${t('firstWinRate')}</p><div><p class="text-lg font-semibold text-gray-800 dark:text-gray-100">${stats.firstTurnWinRate}</p><p class="text-xs text-gray-400 dark:text-gray-500">${stats.firstTurnTotal > 0 ? `${stats.firstTurnWins}${t('winsShort')} / ${stats.firstTurnTotal}${t('gamesShort')}` : t('na')}</p></div></div><div class="md:contents"><p class="text-sm text-gray-500 dark:text-gray-400 md:text-right md:font-semibold md:self-center">${t('secondWinRate')}</p><div><p class="text-lg font-semibold text-gray-800 dark:text-gray-100">${stats.secondTurnWinRate}</p><p class="text-xs text-gray-400 dark:text-gray-500">${stats.secondTurnTotal > 0 ? `${stats.secondTurnWins}${t('winsShort')} / ${stats.secondTurnTotal}${t('gamesShort')}` : t('na')}</p></div></div><div class="md:contents"><p class="text-sm text-gray-500 dark:text-gray-400 md:text-right md:font-semibold md:self-center">${t('longestStreak')}</p><div><p class="text-lg font-bold text-gray-800 dark:text-gray-100">${stats.longestStreak}</p><p class="text-xs text-gray-400 dark:text-gray-500">${t('wins')}</p></div></div></div>`;
+    const takeTwoStatsHTML = state.mode === 'takeTwo' ? `<div class="md:contents"><p class="text-sm text-gray-500 dark:text-gray-400 md:text-right md:font-semibold md:self-center">${t('averageWins')}</p><div><p class="text-lg font-bold text-gray-800 dark:text-gray-100">${averageWins}</p><p class="text-xs text-gray-400 dark:text-gray-500">${t('wins')}</p></div></div>` : '';
+    const statsLayoutHTML = `<div class="flex flex-wrap justify-around items-start text-center gap-y-4 md:grid md:grid-cols-[max-content,auto] md:gap-x-4 md:gap-y-3 md:text-left"><div class="md:contents"><p class="text-sm text-gray-500 dark:text-gray-400 md:text-right md:font-semibold md:self-center">${t('winRate')}</p><div><p class="text-lg font-bold text-gray-800 dark:text-gray-100">${stats.winRate}</p><p class="text-xs text-gray-400 dark:text-gray-500">${stats.wins}${t('winsShort')} / ${stats.losses}${t('lossesShort')}</p></div></div><div class="md:contents"><p class="text-sm text-gray-500 dark:text-gray-400 md:text-right md:font-semibold md:self-center">${t('firstWinRate')}</p><div><p class="text-lg font-semibold text-gray-800 dark:text-gray-100">${stats.firstTurnWinRate}</p><p class="text-xs text-gray-400 dark:text-gray-500">${stats.firstTurnTotal > 0 ? `${stats.firstTurnWins}${t('winsShort')} / ${stats.firstTurnTotal}${t('gamesShort')}` : t('na')}</p></div></div><div class="md:contents"><p class="text-sm text-gray-500 dark:text-gray-400 md:text-right md:font-semibold md:self-center">${t('secondWinRate')}</p><div><p class="text-lg font-semibold text-gray-800 dark:text-gray-100">${stats.secondTurnWinRate}</p><p class="text-xs text-gray-400 dark:text-gray-500">${stats.secondTurnTotal > 0 ? `${stats.secondTurnWins}${t('winsShort')} / ${stats.secondTurnTotal}${t('gamesShort')}` : t('na')}</p></div></div><div class="md:contents"><p class="text-sm text-gray-500 dark:text-gray-400 md:text-right md:font-semibold md:self-center">${t('longestStreak')}</p><div><p class="text-lg font-bold text-gray-800 dark:text-gray-100">${stats.longestStreak}</p><p class="text-xs text-gray-400 dark:text-gray-500">${t('wins')}</p></div></div>${takeTwoStatsHTML}</div>`;
 
     const tagFilterCount = tagFilter ? (tagFilter.my.include.length + tagFilter.my.exclude.length + tagFilter.opp.include.length + tagFilter.opp.exclude.length) : 0;
     
@@ -1069,7 +1232,7 @@ const renderStatsView = (deckId) => {
     const allText = isNormalMode ? t('allDecks') : t('allClasses');
 
     // --- 4. Assemble the final HTML ---
-    appContainer.innerHTML = `<main class="w-full max-w-7xl mx-auto"><div class="relative"><div class="flex justify-between items-center gap-2"><div class="flex items-center gap-2 min-w-0"><button data-action="back-to-decks" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"><svg class="w-4 h-4 pointer-events-none" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>${t('back')}</button><div class="relative flex-1 min-w-0 ml-2"><button data-action="toggle-deck-switcher" id="deck-switcher-btn" class="flex w-full items-center gap-2 p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700/50 transition-colors"><h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100 truncate" title="${displayDeck.name}">${t('statsFor', {name: `<span class="${classStyles[displayDeck.class].text}">${displayDeck.name}</span>`})}</h2><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 dark:text-gray-400 transition-transform flex-shrink-0 ${statsDeckSwitcherVisible ? 'rotate-180' : ''}" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg></button><div id="deck-switcher-dropdown" class="${statsDeckSwitcherVisible ? '' : 'hidden'} absolute top-full left-0 mt-2 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-xl border dark:border-gray-700 z-20 overflow-hidden"><ul class="max-h-80 overflow-y-auto"><li><button data-action="switch-stats-deck" data-deck-id="all" class="w-full text-left px-4 py-3 text-sm font-semibold hover:bg-blue-50 dark:hover:bg-blue-900/40 transition-colors ${isAllDecksView ? 'text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'}">${allText}</button></li>${isNormalMode ? CLASSES.map(cls => { const isSelected = deckId === `all-${cls}`; const translatedClassName = getTranslatedClassName(cls); const coloredTranslatedClassName = `<span class="${classStyles[cls].text}">${translatedClassName}</span>`; return `<li><button data-action="switch-stats-deck" data-deck-id="all-${cls}" class="w-full text-left px-4 py-3 text-sm hover:bg-blue-50 dark:hover:bg-blue-900/40 transition-colors ${isSelected ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-gray-700 dark:text-gray-300'}">${t('allClassDecks', {class: coloredTranslatedClassName})}</button></li>`; }).join('') : ''}${isNormalMode && availableDecks.length > 0 ? `<li class="border-t border-gray-200 dark:border-gray-700"></li>` : ''}${availableDecks.map(d => `<li><button data-action="switch-stats-deck" data-deck-id="${d.id}" class="w-full text-left px-4 py-3 text-sm hover:bg-blue-50 dark:hover:bg-blue-900/40 transition-colors ${d.id === deckId ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-gray-700 dark:text-gray-300'}">${d.name} <span class="text-xs ${classStyles[d.class].text}">(${getTranslatedClassName(d.class)})</span></button></li>`).join('')}</ul></div></div></div><div class="flex items-center gap-2 flex-shrink-0"><button data-action="open-tag-filter-modal" id="toggle-tag-filter-btn" title="${t('filterByTags')}" class="p-2 rounded-md text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 8 0 013 8v-5z" /></svg></button><div class="relative"><button data-action="toggle-date-filter" id="toggle-date-filter-btn" title="${t('toggleDateFilter')}" class="p-2 rounded-md text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg></button><div id="date-filter-card" class="${dateFilterVisible ? '' : 'hidden'} absolute top-full right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl border dark:border-gray-700 z-20 p-4"><p class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">${t('toggleDateFilter')}</p><form id="date-filter-form" class="space-y-3"><div><label for="start-date" class="block text-xs font-medium text-gray-600 dark:text-gray-400">${t('from')}</label><input type="date" id="start-date" name="start-date" value="${dateFilter.start || ''}" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white text-black"></div><div><label for="end-date" class="block text-xs font-medium text-gray-600 dark:text-gray-400">${t('to')}</label><input type="date" id="end-date" name="end-date" value="${dateFilter.end || ''}" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white text-black"></div><div class="flex items-center justify-end gap-2 pt-2"><button type="button" data-action="clear-date-filter" id="clear-date-filter-btn" class="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-400">${t('clear')}</button><button type="submit" class="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">${t('apply')}</button></div></form></div></div></div></div><div class="mt-1 min-h-[1.25rem]">${filtersActiveHTML()}</div></div>${displayDeck.games.length === 0 ? `<div class="text-center bg-white dark:bg-gray-800 rounded-lg shadow-md border-2 border-dashed border-gray-300 dark:border-gray-600 p-12 mt-1"><h3 class="text-sm font-medium text-gray-900 dark:text-gray-200">${t('noGames')}</h3><p class="mt-1 text-sm text-gray-500 dark:text-gray-400">${t('noGamesHint')}</p></div>` : `<div class="mt-1 grid grid-cols-1 xl:grid-cols-2 gap-8 items-start"><div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6"><div class="flex flex-col md:flex-row items-center justify-around gap-6"><div class="flex-shrink-0 w-full md:w-60">${statsLayoutHTML}</div><div class="flex-grow flex justify-center">${renderChartContainer()}</div></div><div class="mt-6"><div class="flex justify-end items-center mb-2 h-5">${filterClass ? `<button data-action="clear-class-filter" class="text-xs text-blue-500 hover:underline">${t('showAllClasses')}</button>` : ''}</div><div class="grid grid-cols-4 text-xs text-gray-500 dark:text-gray-400 font-medium px-2 pb-1 border-b dark:border-gray-700"><span class="col-span-2">${t('opponent')}</span><span class="text-center col-span-1">${t('playRate')}</span><span class="text-right col-span-1">${t('winRate')}</span></div><div class="space-y-1 mt-2">${opponentBreakdownHTML}</div></div></div><div class="bg-white dark:bg-gray-800 rounded-lg shadow-md"><h3 class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4 px-6 pt-6">${t('matchHistory')} ${filterClass ? t('vs', {name: getTranslatedClassName(filterClass)}): ''}</h3><div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"><ul id="recent-matches-list" class="divide-y divide-gray-100 dark:divide-gray-700">${recentMatchesHTML || `<li class="p-4 text-center text-gray-500 dark:text-gray-400">${t('noMatchesFilter')}</li>`}</ul></div>${paginationControlsHTML()}</div></div>`}</main>`;
+    appContainer.innerHTML = `<main class="w-full max-w-7xl mx-auto"><div class="relative"><div class="flex justify-between items-center gap-2"><div class="flex items-center gap-2 min-w-0"><button data-action="back-to-decks" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"><svg class="w-4 h-4 pointer-events-none" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>${t('back')}</button><div class="relative flex-1 min-w-0 ml-2"><button data-action="toggle-deck-switcher" id="deck-switcher-btn" class="flex w-full items-center gap-2 p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700/50 transition-colors"><h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100 truncate" title="${displayDeck.name}">${t('statsFor', {name: `<span class="${classStyles[displayDeck.class].text}">${displayDeck.name}</span>`})}</h2><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 dark:text-gray-400 transition-transform flex-shrink-0 ${statsDeckSwitcherVisible ? 'rotate-180' : ''}" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg></button><div id="deck-switcher-dropdown" class="${statsDeckSwitcherVisible ? '' : 'hidden'} absolute top-full left-0 mt-2 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-xl border dark:border-gray-700 z-20 overflow-hidden"><ul class="max-h-80 overflow-y-auto"><li><button data-action="switch-stats-deck" data-deck-id="all" class="w-full text-left px-4 py-3 text-sm font-semibold hover:bg-blue-50 dark:hover:bg-blue-900/40 transition-colors ${isAllDecksView ? 'text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'}">${allText}</button></li>${isNormalMode ? CLASSES.map(cls => { const isSelected = deckId === `all-${cls}`; const translatedClassName = getTranslatedClassName(cls); const coloredTranslatedClassName = `<span class="${classStyles[cls].text}">${translatedClassName}</span>`; return `<li><button data-action="switch-stats-deck" data-deck-id="all-${cls}" class="w-full text-left px-4 py-3 text-sm hover:bg-blue-50 dark:hover:bg-blue-900/40 transition-colors ${isSelected ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-gray-700 dark:text-gray-300'}">${t('allClassDecks', {class: coloredTranslatedClassName})}</button></li>`; }).join('') : ''}${isNormalMode && availableDecks.length > 0 ? `<li class="border-t border-gray-200 dark:border-gray-700"></li>` : ''}${availableDecks.map(d => `<li><button data-action="switch-stats-deck" data-deck-id="${d.id}" class="w-full text-left px-4 py-3 text-sm hover:bg-blue-50 dark:hover:bg-blue-900/40 transition-colors ${d.id === deckId ? 'text-blue-600 dark:text-blue-400 font-semibold' : 'text-gray-700 dark:text-gray-300'}">${d.name} <span class="text-xs ${classStyles[d.class].text}">(${getTranslatedClassName(d.class)})</span></button></li>`).join('')}</ul></div></div></div><div class="flex items-center gap-2 flex-shrink-0"><button data-action="open-tag-filter-modal" id="toggle-tag-filter-btn" title="${t('filterByTags')}" class="p-2 rounded-md text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 8 0 013 8v-5z" /></svg></button><div class="relative"><button data-action="toggle-date-filter" id="toggle-date-filter-btn" title="${t('toggleDateFilter')}" class="p-2 rounded-md text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg></button><div id="date-filter-card" class="${dateFilterVisible ? '' : 'hidden'} absolute top-full right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl border dark:border-gray-700 z-20 p-4"><p class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">${t('toggleDateFilter')}</p><form id="date-filter-form" class="space-y-3"><div><label for="start-date" class="block text-xs font-medium text-gray-600 dark:text-gray-400">${t('from')}</label><input type="date" id="start-date" name="start-date" value="${dateFilter.start || ''}" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white text-black"></div><div><label for="end-date" class="block text-xs font-medium text-gray-600 dark:text-gray-400">${t('to')}</label><input type="date" id="end-date" name="end-date" value="${dateFilter.end || ''}" class="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white text-black"></div><div class="flex items-center justify-end gap-2 pt-2"><button type="button" data-action="clear-date-filter" id="clear-date-filter-btn" class="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-400">${t('clear')}</button><button type="submit" class="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">${t('apply')}</button></div></form></div></div></div></div><div class="mt-1 min-h-[1.25rem]">${filtersActiveHTML()}</div></div>${(filteredDeckGamesCount === 0 && (displayDeck.runs || []).length === 0) ? `<div class="text-center bg-white dark:bg-gray-800 rounded-lg shadow-md border-2 border-dashed border-gray-300 dark:border-gray-600 p-12 mt-1"><h3 class="text-sm font-medium text-gray-900 dark:text-gray-200">${t('noGames')}</h3><p class="mt-1 text-sm text-gray-500 dark:text-gray-400">${t('noGamesHint')}</p></div>` : `<div class="mt-1 grid grid-cols-1 xl:grid-cols-2 gap-8 items-start"><div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6"><div class="flex flex-col md:flex-row items-center justify-around gap-6"><div class="flex-shrink-0 w-full md:w-60">${statsLayoutHTML}</div><div class="flex-grow flex justify-center">${renderChartContainer()}</div></div><div class="mt-6"><div class="flex justify-end items-center mb-2 h-5">${filterClass ? `<button data-action="clear-class-filter" class="text-xs text-blue-500 hover:underline">${t('showAllClasses')}</button>` : ''}</div><div class="grid grid-cols-4 text-xs text-gray-500 dark:text-gray-400 font-medium px-2 pb-1 border-b dark:border-gray-700"><span class="col-span-2">${t('opponent')}</span><span class="text-center col-span-1">${t('playRate')}</span><span class="text-right col-span-1">${t('winRate')}</span></div><div class="space-y-1 mt-2">${opponentBreakdownHTML}</div></div></div><div class="bg-white dark:bg-gray-800 rounded-lg shadow-md"><h3 class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4 px-6 pt-6">${t('matchHistory')} ${filterClass ? t('vs', {name: getTranslatedClassName(filterClass)}): ''}</h3><div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700"><ul id="recent-matches-list" class="divide-y divide-gray-100 dark:divide-gray-700">${recentMatchesHTML || `<li class="p-4 text-center text-gray-500 dark:text-gray-400">${t('noMatchesFilter')}</li>`}</ul></div>${paginationControlsHTML()}</div></div>`}</main>`;
 };
 
 const renderTagFilterModalContent = () => {
@@ -1078,7 +1241,7 @@ const renderTagFilterModalContent = () => {
 
     // Keep a mutable copy of the filters that lives for the lifetime of the modal's open state.
     // This is the source of truth for the modal's UI.
-    const localFilterState = JSON.parse(JSON.stringify(state.view.tagFilter));
+    const localFilterState = JSON.parse(JSON.stringify(state.view.tagFilter || { my: { include: [], exclude: [] }, opp: { include: [], exclude: [] } }));
 
     // This function re-renders the entire modal content. It is called recursively by the inputs.
     const rerender = () => {
@@ -1337,301 +1500,204 @@ const renderManageTagsView = () => {
     if (!document.getElementById('manage-tags-view')) {
         appContainer.innerHTML = `
             <main id="manage-tags-view" class="w-full max-w-2xl mx-auto">
-                 <div class="flex items-center gap-4 mb-6">
-                    <button data-action="back-to-decks" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                <div class="flex items-center gap-4 mb-4">
+                    <button data-action="back-to-stats" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
                         <svg class="w-4 h-4 pointer-events-none" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
-                        ${t('back')}
+                        ${t('backToStats')}
                     </button>
-                    <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100">${t('manageTags')}</h2>
+                    <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100">${t('manageTags')}</h2>
                 </div>
-                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 md:p-8 mb-6">
-                    <form id="add-tag-form" autocomplete="off">
-                        <div class="mb-4">
-                            <label for="new-tag-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">${t('addOrSearchTags')}</label>
-                            <input 
-                                type="text"
-                                id="new-tag-name"
-                                name="new-tag-name"
-                                required
-                                class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white text-gray-900"
-                                placeholder="${t('tagSearchPlaceholder')}"
-                                value="${state.view.tagSearchQuery || ''}"
-                             />
-                        </div>
-                        <div class="flex justify-end">
-                            <button type="submit" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700">${t('addNewTag')}</button>
-                        </div>
-                    </form>
+
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 md:p-8 space-y-6">
+                    <div>
+                        <form id="add-tag-form" class="flex gap-2">
+                            <label for="new-tag-name" class="sr-only">${t('addOrSearchTags')}</label>
+                            <input type="text" id="new-tag-name" name="new-tag-name" placeholder="${t('tagSearchPlaceholder')}" class="flex-grow w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white text-gray-900">
+                            <button type="submit" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">${t('addNewTag')}</button>
+                        </form>
+                    </div>
+
+                    <div id="tags-list-container" class="space-y-2">
+                        <!-- Tag list will be rendered here -->
+                    </div>
                 </div>
-                
-                <ul id="tag-list-container" class="space-y-4">
-                    <!-- Tag list will be rendered here -->
-                </ul>
             </main>
         `;
     }
-
-    // This part runs on every render for this view, updating only the dynamic content.
-    const tagListContainer = document.getElementById('tag-list-container');
-    const searchInput = document.getElementById('new-tag-name');
     
-    // Sync search input value with state (in case of programmatic changes)
-    if (searchInput && searchInput.value !== (state.view.tagSearchQuery || '')) {
-        searchInput.value = state.view.tagSearchQuery || '';
+    // This part runs on every render to update the dynamic content.
+    const container = document.getElementById('tags-list-container');
+    const newTagNameInput = document.getElementById('new-tag-name');
+    if (!container || !newTagNameInput) return;
+
+    newTagNameInput.value = state.view.tagSearchQuery || '';
+
+    const sortedTags = state.tags
+        .filter(tag => !state.view.tagSearchQuery || tag.name.toLowerCase().includes(state.view.tagSearchQuery.toLowerCase()))
+        .sort((a, b) => (state.tagUsage[b.id] || 0) - (state.tagUsage[a.id] || 0));
+
+    if (sortedTags.length === 0 && !state.view.tagSearchQuery) {
+        container.innerHTML = `<p class="text-center text-gray-500 dark:text-gray-400 py-4">${t('noTagsDefined')}</p>`;
+        return;
     }
 
-    const searchQuery = (state.view.tagSearchQuery || '').toLowerCase();
-    const editingTagId = state.view.editingTagId;
-
-    const sortedTags = [...state.tags].sort((a, b) => a.name.localeCompare(b.name, state.language, { sensitivity: 'base' }));
-
-    const filteredTags = sortedTags.filter(tag => {
-        // Always show the tag being edited, regardless of the search filter
-        if (tag.id === editingTagId) return true;
-        // Otherwise, filter by the search query. Use normalize() for better IME compatibility.
-        return tag.name.normalize().toLowerCase().includes(searchQuery.normalize());
-    });
-
-    if (tagListContainer) {
-        const tagListHTML = filteredTags.map(tag => {
-            const isEditing = tag.id === editingTagId;
+    container.innerHTML = sortedTags.map(tag => {
+        const isEditing = state.view.type === 'manage_tags' && state.view.editingTagId === tag.id;
+        
+        if (isEditing) {
+            return `
+                <form data-action="save-tag" data-tag-id="${tag.id}" class="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+                    <input type="text" name="tag-name" value="${tag.name}" required class="flex-grow w-full px-2 py-1 text-sm border border-blue-400 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                    <div class="flex gap-2 ml-4">
+                        <button type="submit" aria-label="${t('save')}" class="p-2 text-white bg-green-500 rounded-full hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
+                        </button>
+                        <button type="button" data-action="cancel-edit-tag" aria-label="${t('cancel')}" class="p-2 text-white bg-red-500 rounded-full hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    </div>
+                </form>
+            `;
+        } else {
             const style = classStyles.Neutral;
-    
-            if (isEditing) {
-                return `
-                    <li class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md border-l-4 border-blue-500">
-                        <form data-action="save-tag" data-tag-id="${tag.id}">
-                            <div class="mb-4">
-                                <label for="tag-name-edit-${tag.id}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">${t('tagName')}</label>
-                                <input
-                                    type="text"
-                                    name="tag-name"
-                                    id="tag-name-edit-${tag.id}"
-                                    value="${tag.name}"
-                                    required
-                                    class="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white text-gray-900"
-                                />
-                            </div>
-                            <div class="flex justify-end gap-3">
-                                <button type="button" data-action="cancel-edit-tag" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">${t('cancel')}</button>
-                                <button type="submit" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700">${t('save')}</button>
-                            </div>
-                        </form>
-                    </li>
-                `;
-            } else {
-                 return `
-                    <li class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow flex items-center justify-between gap-4">
-                        <span class="py-1 px-3 text-sm font-medium rounded-full ${style.tag}">${tag.name}</span>
-                        <div class="flex items-center gap-2">
-                             <button data-action="edit-tag" data-tag-id="${tag.id}" class="px-3 py-1 text-xs font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600">${t('edit')}</button>
-                             <button data-action="open-delete-tag-modal" data-tag-id="${tag.id}" class="px-3 py-1 text-xs font-semibold text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-900/50 rounded-md hover:bg-red-200 dark:hover:bg-red-900">${t('delete')}</button>
-                        </div>
-                    </li>
-                `;
-            }
-        }).join('');
-    
-        tagListContainer.innerHTML = tagListHTML || (searchQuery ? `<li class="text-center text-gray-500 dark:text-gray-400 py-8">${t('noTagsFound')}</li>` : `<li class="text-center text-gray-500 dark:text-gray-400 py-8">${t('noTagsDefined')}</li>`);
-    }
+            return `
+                <div class="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg">
+                    <span class="inline-flex items-center gap-1.5 py-1 px-2.5 text-xs font-medium rounded-full ${style.tag}">${tag.name}</span>
+                    <div class="flex gap-2">
+                         <button data-action="edit-tag" data-tag-id="${tag.id}" aria-label="${t('edit')}" class="p-2 text-gray-400 dark:text-gray-500 rounded-full hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-gray-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L16.732 3.732z" /></svg>
+                        </button>
+                        <button data-action="open-delete-tag-modal" data-tag-id="${tag.id}" aria-label="${t('delete')}" class="p-2 text-gray-400 dark:text-gray-500 rounded-full hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/50 dark:hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 pointer-events-none" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clip-rule="evenodd" /></svg>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+    }).join('');
 
-    // Post-render DOM manipulations for focus handling
-    if (editingTagId) {
-        const editInput = document.getElementById(`tag-name-edit-${editingTagId}`);
-        editInput?.focus();
-        editInput?.select();
-    } else {
-        // Only set focus if the input isn't already focused.
-        if (searchInput && document.activeElement?.id !== 'new-tag-name') {
-            searchInput.focus();
-            // Move cursor to the end of the input
-            const val = searchInput.value;
-            searchInput.value = '';
-            searchInput.value = val;
+    if (state.view.type === 'manage_tags' && state.view.editingTagId) {
+        const input = container.querySelector('input[name="tag-name"]');
+        if (input) {
+            input.focus();
+            input.select();
         }
     }
 };
 
 const renderModals = () => {
-    // Add Deck Modal
-    document.querySelector('#add-deck-modal #add-deck-modal-title').textContent = t('addNewDeck');
-    document.querySelector('#add-deck-modal label[for="deckName"]').textContent = t('deckName');
-    document.querySelector('#add-deck-modal #deckName').placeholder = t('deckNamePlaceholder');
-    document.querySelector('#add-deck-modal #deck-class-label').textContent = t('class');
-    document.querySelector('#add-deck-modal #cancel-deck-button').textContent = t('cancel');
-    document.querySelector('#add-deck-modal #save-deck-button').textContent = t('saveDeck');
-
-    // Delete Deck / Reset Class Modal
-    const isTakeTwoMode = state.mode === 'takeTwo';
-    const deckList = isTakeTwoMode ? state.takeTwoDecks : state.decks;
-    const deckToDelete = state.deckToDeleteId ? deckList.find(d => d.id === state.deckToDeleteId) : null;
-    const deckNameToDelete = deckToDelete ? deckToDelete.name : '';
-    
-    const deleteModalTitle = document.querySelector('#delete-deck-confirm-modal #delete-deck-modal-title');
-    const deleteModalText = document.querySelector('#delete-deck-confirm-modal p.text-sm');
-    const confirmDeleteBtn = document.querySelector('#delete-deck-confirm-modal #confirm-delete-deck-button');
-
-    if (isTakeTwoMode) {
-        deleteModalTitle.textContent = t('resetClassTitle');
-        deleteModalText.innerHTML = t('resetClassConfirm', { name: `<strong class="font-semibold text-gray-600 dark:text-gray-300">${deckNameToDelete}</strong>` });
-        confirmDeleteBtn.textContent = t('reset');
-    } else {
-        deleteModalTitle.textContent = t('deleteDeckTitle');
-        deleteModalText.innerHTML = t('deleteDeckConfirm', {name: `<strong id="deck-to-delete-name" class="font-semibold text-gray-600 dark:text-gray-300 inline-block max-w-full sm:max-w-xs truncate align-bottom" title="${deckNameToDelete}">${deckNameToDelete}</strong>`});
-        confirmDeleteBtn.textContent = t('delete');
+    // --- Delete Deck Confirmation Modal ---
+    const deckToDeleteId = state.deckToDeleteId;
+    if (deckToDeleteId) {
+        const deckList = state.mode === 'takeTwo' ? state.takeTwoDecks : state.decks;
+        const deck = deckList.find(d => d.id === deckToDeleteId);
+        if (deck) {
+            const isTakeTwo = state.mode === 'takeTwo';
+            document.getElementById('deck-to-delete-name').textContent = deck.name;
+            document.getElementById('delete-deck-modal-title').textContent = isTakeTwo ? t('resetClassTitle') : t('deleteDeckTitle');
+            const confirmTextPara = deleteDeckConfirmModal.querySelector('p');
+            confirmTextPara.innerHTML = isTakeTwo
+                ? t('resetClassConfirm', { name: `<strong class="text-gray-600 dark:text-gray-300">${deck.name}</strong>` })
+                : t('deleteDeckConfirm', { name: `<strong class="text-gray-600 dark:text-gray-300">${deck.name}</strong>` });
+            document.getElementById('confirm-delete-deck-button').textContent = isTakeTwo ? t('reset') : t('delete');
+        }
     }
-    document.querySelector('#delete-deck-confirm-modal #cancel-delete-deck-button').textContent = t('cancel');
-    
-    // Delete Tag Modal
-    document.querySelector('#delete-tag-confirm-modal #delete-tag-modal-title').textContent = t('deleteTagTitle');
-    const tagToDelete = state.tagToDeleteId ? state.tags.find(tag => tag.id === state.tagToDeleteId) : null;
-    const tagNameToDelete = tagToDelete ? tagToDelete.name : '';
-    document.querySelector('#delete-tag-confirm-modal p.text-sm').innerHTML = t('deleteTagConfirm', {name: `<strong id="tag-to-delete-name" class="font-semibold text-gray-600 dark:text-gray-300 inline-block max-w-full sm:max-w-xs truncate align-bottom" title="${tagNameToDelete}">${tagNameToDelete}</strong>`});
-    document.querySelector('#delete-tag-confirm-modal #confirm-delete-tag-button').textContent = t('delete');
-    document.querySelector('#delete-tag-confirm-modal #cancel-delete-tag-button').textContent = t('cancel');
-
-    // Merge Tag Modal
-    document.querySelector('#merge-tag-confirm-modal #merge-tag-modal-title').textContent = t('mergeTagsTitle');
-    document.querySelector('#merge-tag-confirm-modal #confirm-merge-tag-button').textContent = t('merge');
-    document.querySelector('#merge-tag-confirm-modal #cancel-merge-tag-button').textContent = t('cancel');
-    const tagToMergeInfo = state.tagToMerge;
-    if (tagToMergeInfo) {
-        const sourceName = tagToMergeInfo.sourceTag.name;
-        const targetName = tagToMergeInfo.targetTag.name;
-        document.querySelector('#merge-tag-confirm-modal #merge-tag-modal-body').innerHTML = t('mergeTagsConfirm', {
-            sourceName: `<strong class="font-semibold text-gray-600 dark:text-gray-300">${sourceName}</strong>`,
-            targetName: `<strong class="font-semibold text-gray-600 dark:text-gray-300">${targetName}</strong>`
+    // --- Delete Tag Confirmation Modal ---
+    const tagToDeleteId = state.tagToDeleteId;
+    if (tagToDeleteId) {
+        const tag = state.tags.find(t => t.id === tagToDeleteId);
+        if (tag) {
+            deleteTagConfirmModal.querySelector('#tag-to-delete-name').textContent = tag.name;
+            deleteTagConfirmModal.querySelector('p').innerHTML = t('deleteTagConfirm', { name: `<strong class="text-gray-600 dark:text-gray-300">${tag.name}</strong>` });
+        }
+    }
+    // --- Merge Tag Confirmation Modal ---
+    const tagToMerge = state.tagToMerge;
+    if (tagToMerge) {
+        mergeTagConfirmModal.querySelector('#merge-tag-modal-body').innerHTML = t('mergeTagsConfirm', {
+            sourceName: `<strong class="text-gray-600 dark:text-gray-300">${tagToMerge.sourceTag.name}</strong>`,
+            targetName: `<strong class="text-gray-600 dark:text-gray-300">${tagToMerge.targetTag.name}</strong>`
         });
     }
+    // --- Deck Notes Modal ---
+    const deckNotesState = state.deckNotesState;
+    if (deckNotesState.deckId) {
+        const deckList = state.mode === 'takeTwo' ? state.takeTwoDecks : state.decks;
+        const deck = deckList.find(d => d.id === deckNotesState.deckId);
+        if(deck) {
+            const titleEl = document.getElementById('deck-notes-modal-title');
+            const contentEl = document.getElementById('deck-notes-content');
+            const footerEl = document.getElementById('deck-notes-footer');
+            const style = classStyles[deck.class];
 
-    // Delete Match Modal
-    document.querySelector('#delete-match-confirm-modal #delete-match-modal-title').textContent = t('deleteMatchTitle');
-    document.querySelector('#delete-match-confirm-modal p.text-sm').textContent = t('deleteMatchConfirm');
-    document.querySelector('#delete-match-confirm-modal #confirm-delete-match-button').textContent = t('delete');
-    document.querySelector('#delete-match-confirm-modal #cancel-delete-match-button').textContent = t('cancel');
-    
-    // Import Modal
-    document.querySelector('#import-confirm-modal #import-modal-title').textContent = t('importTitle');
-    document.querySelector('#import-confirm-modal p.text-sm').textContent = t('importConfirm');
-    document.querySelector('#import-confirm-modal #confirm-merge-button').textContent = t('merge');
-    document.querySelector('#import-confirm-modal #confirm-overwrite-button').textContent = t('overwrite');
-    document.querySelector('#import-confirm-modal #cancel-import-button').textContent = t('cancel');
+            titleEl.innerHTML = `
+                <span class="px-2 py-0.5 text-xs font-semibold rounded-full ${style.bg} ${style.text}">${getTranslatedClassName(deck.class)}</span>
+                <span class="font-bold">${deck.name}</span>
+            `;
 
-    // Reset Modal
-    document.querySelector('#reset-confirm-modal #reset-modal-title').textContent = t('resetTitle');
-    document.querySelector('#reset-confirm-modal p.text-sm').textContent = t('resetConfirm');
-    document.querySelector('#reset-confirm-modal #confirm-reset-button').textContent = t('reset');
-    document.querySelector('#reset-confirm-modal #cancel-reset-button').textContent = t('cancel');
-
-    // Deck Notes Modal
-    const { deckId, isEditing } = state.deckNotesState;
-    if (deckId) {
-        const deck = deckList.find(d => d.id === deckId);
-        if (deck) {
-            const titleEl = deckNotesModal.querySelector('#deck-notes-modal-title');
-            const contentEl = deckNotesModal.querySelector('#deck-notes-content');
-            const footerEl = deckNotesModal.querySelector('#deck-notes-footer');
-
-            const deckNameHTML = `<span class="${classStyles[deck.class].text} font-bold truncate shrink" title="${deck.name}">${deck.name}</span>`;
-            titleEl.innerHTML = t('notesFor', { name: deckNameHTML });
-            
-            if (isEditing) {
-                contentEl.innerHTML = `
-                    <textarea
-                        id="deck-notes-editor"
-                        class="w-full h-64 p-2 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                    >${deck.notes || ''}</textarea>
-                `;
-                setTimeout(() => document.getElementById('deck-notes-editor')?.focus(), 0);
-
+            if (deckNotesState.isEditing) {
+                contentEl.innerHTML = `<textarea class="w-full h-48 p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-700 dark:text-gray-300" placeholder="${t('addNotes')}">${deck.notes || ''}</textarea>`;
                 footerEl.innerHTML = `
-                    <button type="button" data-action="save-deck-notes" class="inline-flex justify-center w-full sm:w-auto rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                        ${t('saveNotes')}
-                    </button>
-                    <button type="button" data-action="cancel-deck-notes-edit" class="inline-flex justify-center w-full sm:w-auto rounded-md border border-gray-300 dark:border-gray-500 shadow-sm px-4 py-2 bg-white dark:bg-gray-600 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                        ${t('cancel')}
-                    </button>
+                    <button data-action="save-deck-notes" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700">${t('saveNotes')}</button>
+                    <button data-action="cancel-deck-notes-edit" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">${t('cancel')}</button>
                 `;
+                contentEl.querySelector('textarea').focus();
             } else {
-                contentEl.innerHTML = `<div class="whitespace-pre-wrap break-words">${linkify(deck.notes || '') || `<span class="text-gray-500 dark:text-gray-400">${t('noNotesYet')}</span>`}</div>`;
-                footerEl.innerHTML = `
-                    <button type="button" data-action="edit-deck-notes" class="inline-flex justify-center w-full sm:w-auto rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                        ${t('edit')}
-                    </button>
-                    <button type="button" data-action="close-notes-modal" class="inline-flex justify-center w-full sm:w-auto rounded-md border border-gray-300 dark:border-gray-500 shadow-sm px-4 py-2 bg-white dark:bg-gray-600 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                        ${t('close')}
-                    </button>
-                `;
+                contentEl.innerHTML = deck.notes ? `<div class="prose prose-sm dark:prose-invert max-w-none">${linkify(deck.notes)}</div>` : `<p class="italic text-gray-500 dark:text-gray-400">${t('noNotesYet')}</p>`;
+                footerEl.innerHTML = `<button data-action="edit-deck-notes" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700">${deck.notes ? t('editNotes') : t('addNotes')}</button>`;
             }
         }
     }
-
-    // Match Info Modal
+    // --- Match Info Modal ---
     const matchInfoToShow = state.matchInfoToShow;
     if (matchInfoToShow) {
-        const deck = deckList.find(d => d.id === matchInfoToShow.deckId);
-        const game = deck?.games.find(g => g.id === matchInfoToShow.gameId);
-        const contentEl = matchInfoModal.querySelector('#match-info-content');
-        
-        if (game) {
-            const tagsById = Object.fromEntries(state.tags.map(t => [t.id, t]));
-            const myPills = renderTagPills(game.myTagIds, tagsById);
-            const myTagsHTML = myPills ? myPills.map(p => p.outerHTML).join('') : '';
+        const { deckId, gameId } = matchInfoToShow;
+        const deckList = state.mode === 'takeTwo' ? state.takeTwoDecks : state.decks;
+        const deck = deckList.find(d => d.id === deckId);
+        if (deck) {
+            const game = deck.games.find(g => g.id === gameId);
+            if(game) {
+                const tagsById = Object.fromEntries(state.tags.map(t => [t.id, t]));
+                const myTagPills = (game.myTagIds && game.myTagIds.length > 0) ? renderTagPills(game.myTagIds, tagsById).map(p => p.outerHTML).join('') : `<p class="text-xs italic text-gray-500 dark:text-gray-400">${t('noTagsForMatch')}</p>`;
+                const opponentTagPills = (game.opponentTagIds && game.opponentTagIds.length > 0) ? renderTagPills(game.opponentTagIds, tagsById).map(p => p.outerHTML).join('') : `<p class="text-xs italic text-gray-500 dark:text-gray-400">${t('noTagsForMatch')}</p>`;
 
-            const oppPills = renderTagPills(game.opponentTagIds, tagsById);
-            const oppTagsHTML = oppPills ? oppPills.map(p => p.outerHTML).join('') : '';
-            
-            const locale = state.language === 'ja' ? 'ja-JP' : undefined;
-            const dateString = new Date(game.timestamp).toLocaleString(locale, { dateStyle: 'long', timeStyle: 'short'});
-
-            let tagsHTML = '';
-            if (myTagsHTML || oppTagsHTML) {
-                tagsHTML = `
-                    ${myTagsHTML ? `<div><h4 class="font-semibold text-gray-800 dark:text-gray-100 mb-1">${t('myTags')}</h4><div class="flex flex-wrap gap-2">${myTagsHTML}</div></div>` : ''}
-                    ${oppTagsHTML ? `<div><h4 class="font-semibold text-gray-800 dark:text-gray-100 mb-1">${t('opponentTags')}</h4><div class="flex flex-wrap gap-2">${oppTagsHTML}</div></div>` : ''}
+                document.getElementById('match-info-content').innerHTML = `
+                    <div><strong>${t('opponentClass')}:</strong> <span class="${classStyles[game.opponentClass].text}">${getTranslatedClassName(game.opponentClass)}</span></div>
+                    <div><strong>${t('turn')}:</strong> ${getTranslated(TURN_NAMES, game.turn)}</div>
+                    <div><strong>${t('result')}:</strong> <span class="${game.result === 'Win' ? 'text-green-600' : 'text-red-600'}">${getTranslated(RESULT_NAMES, game.result)}</span></div>
+                    <div><strong>${t('recordedAt')}:</strong> ${new Date(game.timestamp).toLocaleString(state.language === 'ja' ? 'ja-JP' : undefined)}</div>
+                    <div class="border-t pt-3 mt-3">
+                        <strong class="block mb-2">${t('myTags')}:</strong>
+                        <div class="flex flex-wrap gap-2">${myTagPills}</div>
+                    </div>
+                    <div class="border-t pt-3 mt-3">
+                        <strong class="block mb-2">${t('opponentTags')}:</strong>
+                        <div class="flex flex-wrap gap-2">${opponentTagPills}</div>
+                    </div>
                 `;
-            } else {
-                tagsHTML = `<p class="text-gray-500 dark:text-gray-400">${t('noTagsForMatch')}</p>`;
             }
-
-            contentEl.innerHTML = `
-                <div>
-                    <h4 class="font-semibold text-gray-800 dark:text-gray-100">${t('recordedAt')}</h4>
-                    <p>${dateString}</p>
-                </div>
-                ${tagsHTML}
-            `;
-        } else {
-            contentEl.innerHTML = `<p>Match data not found.</p>`;
         }
-        matchInfoModal.querySelector('#match-info-modal-title').textContent = t('matchDetails');
-        matchInfoModal.querySelector('[data-action="close-match-info-modal"]').textContent = t('close');
-    }
-    
-    // Tag Filter Modal
-    if (tagFilterModal && !tagFilterModal.classList.contains('hidden') && state.view.type === 'stats') {
-        renderTagFilterModalContent();
     }
 };
 
+
 // --- MAIN RENDER FUNCTION ---
 export const render = () => {
-    document.documentElement.lang = state.language;
-    const { type, deckId } = state.view;
-    switch (type) {
+    switch (state.view.type) {
+        case 'list':
+            renderDeckList();
+            break;
         case 'add_game':
-            renderAddGameView(deckId);
+            renderAddGameView(state.view.deckId);
             break;
         case 'stats':
-            renderStatsView(deckId);
+            renderStatsView(state.view.deckId);
             break;
         case 'manage_tags':
             renderManageTagsView();
             break;
-        case 'list':
         default:
             renderDeckList();
-            break;
     }
     renderModals();
 };

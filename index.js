@@ -1,5 +1,5 @@
-import { state, saveDecks, saveSettings, loadDecks, loadSettings, setView, setEditingDeckId, setDeckNotesState, setNewDeckClass, setDeckToDeleteId, setMatchToDelete, setFileToImport, CLASSES, loadTags, loadTagUsage, saveTags, saveTagUsage, addTag, updateTagUsage, setAddGameTagsExpanded, setMatchInfoToShow, setTagToDeleteId, setTagToMerge, loadTakeTwoDecks, saveTakeTwoDecks, initializeTakeTwoDecks, setMode } from './store.js';
-import { render, openAddDeckModal, closeAddDeckModal, openDeleteDeckModal, closeDeleteDeckModal, openDeleteMatchModal, closeDeleteMatchModal, openNotesModal, closeNotesModal, openImportModal, closeImportModal, openResetModal, closeResetModal, checkDeckFormValidity, setTheme, openTagFilterModal, closeTagFilterModal, openMatchInfoModal, closeMatchInfoModal, clearAddGameSelections, openDeleteTagModal, closeDeleteTagModal, openMergeTagModal, closeMergeTagModal, resetAddGameState } from './view.js';
+import { state, saveDecks, saveSettings, loadDecks, loadSettings, setView, setEditingDeckId, setDeckNotesState, setNewDeckClass, setDeckToDeleteId, setMatchToDelete, setFileToImport, CLASSES, loadTags, loadTagUsage, saveTags, saveTagUsage, addTag, updateTagUsage, setAddGameTagsExpanded, setMatchInfoToShow, setTagToDeleteId, setTagToMerge, loadTakeTwoDecks, saveTakeTwoDecks, initializeTakeTwoDecks, setMode, setNewTakeTwoResult } from './store.js';
+import { render, openAddDeckModal, closeAddDeckModal, openDeleteDeckModal, closeDeleteDeckModal, openDeleteMatchModal, closeDeleteMatchModal, openNotesModal, closeNotesModal, openImportModal, closeImportModal, openResetModal, closeResetModal, checkDeckFormValidity, setTheme, openTagFilterModal, closeTagFilterModal, openMatchInfoModal, closeMatchInfoModal, clearAddGameSelections, openDeleteTagModal, closeDeleteTagModal, openMergeTagModal, closeMergeTagModal, resetAddGameState, openAddResultModal, closeAddResultModal } from './view.js';
 
 const getCurrentDecks = () => state.mode === 'takeTwo' ? state.takeTwoDecks : state.decks;
 const saveCurrentDecks = () => state.mode === 'takeTwo' ? saveTakeTwoDecks() : saveDecks();
@@ -7,7 +7,7 @@ const saveCurrentDecks = () => state.mode === 'takeTwo' ? saveTakeTwoDecks() : s
 // --- DATA IMPORT/EXPORT ---
 const handleExport = () => {
     const hasNormalData = state.decks.length > 0;
-    const hasTakeTwoData = state.takeTwoDecks.some(d => d.games.length > 0);
+    const hasTakeTwoData = state.takeTwoDecks.some(d => d.games.length > 0 || (d.runs && d.runs.length > 0));
     const hasTagData = state.tags.length > 0;
 
     if (!hasNormalData && !hasTakeTwoData && !hasTagData) {
@@ -21,9 +21,9 @@ const handleExport = () => {
     const tagIdList = state.tags.map(t => t.id);
     const tagIdToIndexMap = new Map(tagIdList.map((id, index) => [id, index]));
 
-    const encodeDeckArray = (deckArray) => deckArray.map(deck => ({
-        ...deck,
-        games: deck.games.map(game => {
+    const encodeDeckArray = (deckArray) => deckArray.map(deck => {
+        const newDeck = { ...deck };
+        newDeck.games = newDeck.games.map(game => {
             const myTagIndices = (game.myTagIds || []).map(id => tagIdToIndexMap.get(id)).filter(i => i !== undefined);
             const opponentTagIndices = (game.opponentTagIds || []).map(id => tagIdToIndexMap.get(id)).filter(i => i !== undefined);
             return [
@@ -35,17 +35,24 @@ const handleExport = () => {
                 myTagIndices,
                 opponentTagIndices
             ];
-        })
-    }));
+        });
+        if (newDeck.runs && newDeck.runs.length > 0) {
+            newDeck.runs = newDeck.runs.map(run => [run.id, run.timestamp, run.wins, run.losses]);
+        } else {
+            delete newDeck.runs;
+        }
+        return newDeck;
+    });
 
     const exportData = {
-        version: "2.3",
+        version: "2.4",
         encoding: {
             classes: CLASSES,
             turns: turns,
             results: results,
             tagIdList: tagIdList,
-            game_fields: ["id", "timestamp", "opponentClassIndex", "turnIndex", "resultIndex", "myTagIndices", "opponentTagIndices"]
+            game_fields: ["id", "timestamp", "opponentClassIndex", "turnIndex", "resultIndex", "myTagIndices", "opponentTagIndices"],
+            run_fields: ["id", "timestamp", "wins", "losses"]
         },
         decks: encodeDeckArray(state.decks),
         takeTwoDecks: encodeDeckArray(state.takeTwoDecks),
@@ -84,7 +91,7 @@ const processImportFile = (file, mode) => {
             
             const rawData = JSON.parse(fileContent);
             
-            if (mode === 'merge' && !['2.3', '2.2', '2.1', '2.0'].includes(rawData.version)) {
+            if (mode === 'merge' && !['2.4', '2.3', '2.2', '2.1', '2.0'].includes(rawData.version)) {
                 alert("Merging is only supported for V2.0+ data format. Please use a compatible backup file or choose to overwrite.");
                 return;
             }
@@ -92,12 +99,12 @@ const processImportFile = (file, mode) => {
             let importedDecks, importedTakeTwoDecks = [], importedTags = [], importedTagUsage = {};
 
             const decodeDeckArray = (encodedDecks, encoding) => {
-                 const { classes, turns, results, tagIdList } = encoding;
+                 const { classes, turns, results, tagIdList, run_fields } = encoding;
                  if (!classes || !turns || !results) throw new Error("Imported file has corrupt encoding data.");
 
-                 return encodedDecks.map(deck => ({
-                    ...deck,
-                    games: deck.games.map(gameArr => ({
+                 return encodedDecks.map(deck => {
+                    const decodedDeck = { ...deck };
+                    decodedDeck.games = deck.games.map(gameArr => ({
                         id: gameArr[0],
                         timestamp: gameArr[1],
                         opponentClass: classes[gameArr[2]],
@@ -105,12 +112,27 @@ const processImportFile = (file, mode) => {
                         result: results[gameArr[4]],
                         myTagIds: (gameArr[5] || []).map(index => tagIdList?.[index]).filter(Boolean),
                         opponentTagIds: (gameArr[6] || []).map(index => tagIdList?.[index]).filter(Boolean),
-                    }))
-                }));
+                    }));
+                    if (deck.runs && run_fields) {
+                        decodedDeck.runs = deck.runs.map(runArr => ({
+                            id: runArr[0],
+                            timestamp: runArr[1],
+                            wins: runArr[2],
+                            losses: runArr[3],
+                        }));
+                    } else {
+                        decodedDeck.runs = [];
+                    }
+                    return decodedDeck;
+                });
             };
 
-            // V2.3 format with Take Two decks
-            if (rawData.version === "2.3" && rawData.encoding?.tagIdList && Array.isArray(rawData.decks)) {
+            if (rawData.version === "2.4" && rawData.encoding?.tagIdList && Array.isArray(rawData.decks)) {
+                importedDecks = decodeDeckArray(rawData.decks, rawData.encoding);
+                importedTakeTwoDecks = decodeDeckArray(rawData.takeTwoDecks || [], rawData.encoding);
+                importedTags = (rawData.tags || []).map(({ id, name }) => ({ id, name }));
+                importedTagUsage = rawData.tagUsage || {};
+            } else if (rawData.version === "2.3" && rawData.encoding?.tagIdList && Array.isArray(rawData.decks)) {
                 importedDecks = decodeDeckArray(rawData.decks, rawData.encoding);
                 importedTakeTwoDecks = decodeDeckArray(rawData.takeTwoDecks || [], rawData.encoding);
                 importedTags = (rawData.tags || []).map(({ id, name }) => ({ id, name }));
@@ -129,12 +151,13 @@ const processImportFile = (file, mode) => {
                     ...deck, games: deck.games.map(gameArr => ({ id: gameArr[0], timestamp: gameArr[1], opponentClass: classes[gameArr[2]], turn: turns[gameArr[3]], result: results[gameArr[4]] }))
                 }));
             } else if (Array.isArray(rawData)) { // V1 legacy format
-                 importedDecks = rawData.map(deck => ({ ...deck, notes: deck.notes || '' }));
+                 importedDecks = rawData.map(deck => ({ ...deck, notes: deck.notes || '', runs: [] }));
             } else {
                  throw new Error("Unsupported or corrupt file format.");
             }
             
             if (!Array.isArray(importedDecks)) throw new Error("The imported file contains invalid deck data.");
+            importedTakeTwoDecks.forEach(d => { if (!d.runs) d.runs = []; });
 
             if (mode === 'overwrite') {
                 state.decks = importedDecks;
@@ -209,7 +232,13 @@ const processImportFile = (file, mode) => {
                             const existingGameIds = new Set(existingDeck.games.map(g => g.id));
                             const gamesToMerge = importedDeck.games.filter(g => !existingGameIds.has(g.id));
                             existingDeck.games.push(...gamesToMerge);
-                             if ('notes' in importedDeck) { existingDeck.notes = importedDeck.notes; }
+                            if ('notes' in importedDeck) { existingDeck.notes = importedDeck.notes; }
+                            // Merge runs
+                            if(importedDeck.runs && importedDeck.runs.length > 0) {
+                                const existingRunIds = new Set((existingDeck.runs || []).map(r => r.id));
+                                const runsToMerge = importedDeck.runs.filter(r => !existingRunIds.has(r.id));
+                                existingDeck.runs = [...(existingDeck.runs || []), ...runsToMerge];
+                            }
                         }
                     });
                 }
@@ -281,6 +310,32 @@ const handleAddDeckSubmit = (e) => {
     render();
 };
 
+const handleAddResultSubmit = (e) => {
+    e.preventDefault();
+    if (state.mode !== 'takeTwo') return;
+
+    const { class: selectedClass, wins, losses } = state.newTakeTwoResult;
+    const saveButton = document.getElementById('save-result-button');
+    if (saveButton.disabled || !selectedClass || wins === null || losses === null) {
+        return;
+    }
+
+    const newRun = {
+        id: crypto.randomUUID(),
+        timestamp: Date.now(),
+        wins,
+        losses,
+    };
+    
+    state.takeTwoDecks = state.takeTwoDecks.map(d =>
+        d.id === selectedClass ? { ...d, runs: [newRun, ...(d.runs || [])] } : d
+    );
+
+    saveTakeTwoDecks();
+    closeAddResultModal();
+    render();
+};
+
 const handleAddGameSubmit = (e) => {
     const form = e.target;
     const saveButton = document.getElementById('save-game-button');
@@ -335,6 +390,8 @@ const handleGlobalClick = (e) => {
         switch (action) {
             case 'open-add-deck-modal': openAddDeckModal(); break;
             case 'close-add-deck-modal': closeAddDeckModal(); break;
+            case 'open-add-result-modal': openAddResultModal(); break;
+            case 'close-add-result-modal': closeAddResultModal(); break;
             case 'open-delete-deck-modal': openDeleteDeckModal(deckId); break;
             case 'close-delete-deck-modal': closeDeleteDeckModal(); break;
             case 'open-delete-tag-modal': openDeleteTagModal(tagId); break;
@@ -391,7 +448,7 @@ const handleGlobalClick = (e) => {
                 if (state.deckToDeleteId) {
                     if (state.mode === 'takeTwo') {
                         state.takeTwoDecks = state.takeTwoDecks.map(d =>
-                            d.id === state.deckToDeleteId ? { ...d, games: [] } : d
+                            d.id === state.deckToDeleteId ? { ...d, games: [], runs: [] } : d
                         );
                         saveTakeTwoDecks();
                     } else {
@@ -675,7 +732,15 @@ const handleGlobalClick = (e) => {
                 break;
             case 'toggle-chart-type':
                 if (state.view.type === 'stats') {
-                    const newChartType = state.view.chartType === 'pie' ? 'bar' : 'pie';
+                    const chartTypes = ['pie', 'bar', 'histogram'];
+                    const currentChartType = state.view.chartType || 'pie';
+                    const isTakeTwo = state.mode === 'takeTwo';
+                    const availableTypes = isTakeTwo ? chartTypes : ['pie', 'bar'];
+                    
+                    const currentIndex = availableTypes.indexOf(currentChartType);
+                    const nextIndex = (currentIndex + 1) % availableTypes.length;
+                    const newChartType = availableTypes[nextIndex];
+            
                     state.chartType = newChartType;
                     saveSettings();
                     setView({ ...state.view, chartType: newChartType });
@@ -758,6 +823,8 @@ const handleGlobalSubmit = (e) => {
 
     if (form.id === 'add-deck-form') {
         handleAddDeckSubmit(e);
+    } else if (form.id === 'add-result-form') {
+        handleAddResultSubmit(e);
     } else if (form.id === 'add-game-form') {
         // Safety net to prevent form submission from mobile keyboards.
     } else if (form.dataset.action === 'save-tag') {
@@ -830,6 +897,7 @@ const handleGlobalSubmit = (e) => {
 const handleGlobalKeyDown = (e) => {
     if (e.key === 'Escape') {
         if (!document.getElementById('add-deck-modal').classList.contains('hidden')) closeAddDeckModal();
+        else if (!document.getElementById('add-result-modal').classList.contains('hidden')) closeAddResultModal();
         else if (!document.getElementById('delete-deck-confirm-modal').classList.contains('hidden')) closeDeleteDeckModal();
         else if (!document.getElementById('delete-match-confirm-modal').classList.contains('hidden')) closeDeleteMatchModal();
         else if (!document.getElementById('delete-tag-confirm-modal').classList.contains('hidden')) closeDeleteTagModal();
@@ -886,7 +954,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (settings.mode && ['normal', 'takeTwo'].includes(settings.mode)) {
         state.mode = settings.mode;
     }
-    if (settings.chartType && ['pie', 'bar'].includes(settings.chartType)) {
+    if (settings.chartType && ['pie', 'bar', 'histogram'].includes(settings.chartType)) {
         state.chartType = settings.chartType;
     }
     if (settings.addGameTagsExpanded) {
