@@ -1,5 +1,7 @@
-import { state, saveDecks, saveSettings, loadDecks, loadSettings, setView, setEditingDeckId, setDeckNotesState, setNewDeckClass, setDeckToDeleteId, setMatchToDelete, setFileToImport, CLASSES, loadTags, loadTagUsage, saveTags, saveTagUsage, addTag, updateTagUsage, setAddGameTagsExpanded, setMatchInfoToShow, setTagToDeleteId, setTagToMerge, loadTakeTwoDecks, saveTakeTwoDecks, initializeTakeTwoDecks, setMode, setNewTakeTwoResult } from './store.js';
-import { render, openAddDeckModal, closeAddDeckModal, openDeleteDeckModal, closeDeleteDeckModal, openDeleteMatchModal, closeDeleteMatchModal, openNotesModal, closeNotesModal, openImportModal, closeImportModal, openResetModal, closeResetModal, checkDeckFormValidity, setTheme, openTagFilterModal, closeTagFilterModal, openMatchInfoModal, closeMatchInfoModal, clearAddGameSelections, openDeleteTagModal, closeDeleteTagModal, openMergeTagModal, closeMergeTagModal, resetAddGameState, openAddResultModal, closeAddResultModal } from './view.js';
+
+
+import { state, saveDecks, saveSettings, loadDecks, loadSettings, setView, setEditingDeckId, setDeckNotesState, setNewDeckClass, setDeckToDeleteId, setMatchToDelete, setRunToDelete, setFileToImport, CLASSES, loadTags, loadTagUsage, saveTags, saveTagUsage, addTag, updateTagUsage, setAddGameTagsExpanded, setMatchInfoToShow, setTagToDeleteId, setTagToMerge, loadTakeTwoDecks, saveTakeTwoDecks, initializeTakeTwoDecks, setMode, setNewTakeTwoResult } from './store.js';
+import { render, openAddDeckModal, closeAddDeckModal, openDeleteDeckModal, closeDeleteDeckModal, openDeleteMatchModal, closeDeleteMatchModal, openDeleteResultModal, closeDeleteResultModal, openNotesModal, closeNotesModal, openImportModal, closeImportModal, openResetModal, closeResetModal, checkDeckFormValidity, setTheme, openTagFilterModal, closeTagFilterModal, openMatchInfoModal, closeMatchInfoModal, clearAddGameSelections, openDeleteTagModal, closeDeleteTagModal, openMergeTagModal, closeMergeTagModal, resetAddGameState, openAddResultModal, closeAddResultModal } from './view.js';
 
 const getCurrentDecks = () => state.mode === 'takeTwo' ? state.takeTwoDecks : state.decks;
 const saveCurrentDecks = () => state.mode === 'takeTwo' ? saveTakeTwoDecks() : saveDecks();
@@ -385,7 +387,7 @@ const handleGlobalClick = (e) => {
     const emptyTagFilter = { my: { include: [], exclude: [] }, opp: { include: [], exclude: [] } };
 
     if (actionTarget) {
-        const { action, deckId, gameId, tagId, class: filterClass } = actionTarget.dataset;
+        const { action, deckId, gameId, runId, tagId, class: filterClass } = actionTarget.dataset;
 
         switch (action) {
             case 'open-add-deck-modal': openAddDeckModal(); break;
@@ -404,6 +406,13 @@ const handleGlobalClick = (e) => {
                  }
                  break;
             case 'close-delete-match-modal': closeDeleteMatchModal(); break;
+            case 'open-delete-result-modal':
+                 const runListItem = target.closest('li[data-run-id]');
+                 if (runListItem) {
+                    openDeleteResultModal(runListItem.dataset.deckId, runListItem.dataset.runId);
+                 }
+                 break;
+            case 'close-delete-result-modal': closeDeleteResultModal(); break;
             case 'open-match-info-modal': 
                 const infoMatchListItem = target.closest('li[data-game-id]');
                 if (infoMatchListItem) {
@@ -476,6 +485,20 @@ const handleGlobalClick = (e) => {
                     });
                     saveCurrentDecks();
                     closeDeleteMatchModal();
+                    render();
+                }
+                break;
+            case 'confirm-delete-result':
+                if (state.runToDelete) {
+                    const { deckId: runDeckId, runId: runIdToDelete } = state.runToDelete;
+                    state.takeTwoDecks = state.takeTwoDecks.map(deck => {
+                        if (deck.id === runDeckId) {
+                            return { ...deck, runs: (deck.runs || []).filter(r => r.id !== runIdToDelete) };
+                        }
+                        return deck;
+                    });
+                    saveTakeTwoDecks();
+                    closeDeleteResultModal();
                     render();
                 }
                 break;
@@ -587,7 +610,8 @@ const handleGlobalClick = (e) => {
                     statsDeckSwitcherVisible: false,
                     dateFilterVisible: false,
                     chartType: state.chartType,
-                    currentPage: 1
+                    matchHistoryCurrentPage: 1,
+                    resultHistoryCurrentPage: 1,
                 });
                 render();
                 break;
@@ -661,23 +685,23 @@ const handleGlobalClick = (e) => {
             case 'import-data': handleImport(); break;
             case 'export-data': handleExport(); break;
             case 'reset-all':
-                const hasAnyData = state.decks.length > 0 || state.takeTwoDecks.some(d => d.games.length > 0) || state.tags.length > 0;
+                const hasAnyData = state.decks.length > 0 || state.takeTwoDecks.some(d => d.games.length > 0 || (d.runs && d.runs.length > 0)) || state.tags.length > 0;
                 if (hasAnyData) openResetModal();
                 break;
             case 'filter-stats': {
                 const newFilter = state.view.filterClass === filterClass ? null : filterClass;
-                setView({ ...state.view, filterClass: newFilter, currentPage: 1 });
+                setView({ ...state.view, filterClass: newFilter, matchHistoryCurrentPage: 1, resultHistoryCurrentPage: 1 });
                 render();
                 break;
             }
             case 'clear-class-filter': {
-                setView({ ...state.view, filterClass: null, currentPage: 1 });
+                setView({ ...state.view, filterClass: null, matchHistoryCurrentPage: 1, resultHistoryCurrentPage: 1 });
                 render();
                 break;
             }
             case 'clear-date-filter': {
                 const newDateFilter = { start: null, end: null };
-                const newView = { ...state.view, dateFilter: newDateFilter, dateFilterVisible: false, currentPage: 1 };
+                const newView = { ...state.view, dateFilter: newDateFilter, dateFilterVisible: false, matchHistoryCurrentPage: 1, resultHistoryCurrentPage: 1 };
                 setView(newView);
                 state.globalDateFilter = newDateFilter;
                 saveSettings();
@@ -685,7 +709,7 @@ const handleGlobalClick = (e) => {
                 break;
             }
             case 'clear-tag-filters': {
-                const newView = { ...state.view, tagFilter: emptyTagFilter, currentPage: 1 };
+                const newView = { ...state.view, tagFilter: emptyTagFilter, matchHistoryCurrentPage: 1, resultHistoryCurrentPage: 1 };
                 setView(newView);
                 state.globalTagFilter = emptyTagFilter;
                 saveSettings();
@@ -706,7 +730,8 @@ const handleGlobalClick = (e) => {
                     deckId,
                     filterClass: null,
                     statsDeckSwitcherVisible: false,
-                    currentPage: 1
+                    matchHistoryCurrentPage: 1,
+                    resultHistoryCurrentPage: 1,
                 });
                 render();
                 break;
@@ -747,15 +772,27 @@ const handleGlobalClick = (e) => {
                     render();
                 }
                 break;
-            case 'prev-page':
-                 if (state.view.type === 'stats' && state.view.currentPage > 1) {
-                    setView({ ...state.view, currentPage: state.view.currentPage - 1 });
+            case 'prev-match-page':
+                if (state.view.type === 'stats' && state.view.matchHistoryCurrentPage > 1) {
+                    setView({ ...state.view, matchHistoryCurrentPage: state.view.matchHistoryCurrentPage - 1 });
                     render();
-                 }
+                }
                 break;
-            case 'next-page':
+            case 'next-match-page':
                 if (state.view.type === 'stats') {
-                    setView({ ...state.view, currentPage: state.view.currentPage + 1 });
+                    setView({ ...state.view, matchHistoryCurrentPage: (state.view.matchHistoryCurrentPage || 1) + 1 });
+                    render();
+                }
+                break;
+            case 'prev-result-page':
+                if (state.view.type === 'stats' && state.view.resultHistoryCurrentPage > 1) {
+                    setView({ ...state.view, resultHistoryCurrentPage: state.view.resultHistoryCurrentPage - 1 });
+                    render();
+                }
+                break;
+            case 'next-result-page':
+                if (state.view.type === 'stats') {
+                    setView({ ...state.view, resultHistoryCurrentPage: (state.view.resultHistoryCurrentPage || 1) + 1 });
                     render();
                 }
                 break;
@@ -856,7 +893,7 @@ const handleGlobalSubmit = (e) => {
         const startDate = form.elements['start-date'].value;
         const endDate = form.elements['end-date'].value;
         const newDateFilter = { start: startDate || null, end: endDate || null };
-        const newView = { ...state.view, dateFilter: newDateFilter, dateFilterVisible: false, currentPage: 1 };
+        const newView = { ...state.view, dateFilter: newDateFilter, dateFilterVisible: false, matchHistoryCurrentPage: 1, resultHistoryCurrentPage: 1 };
         setView(newView);
         state.globalDateFilter = newDateFilter;
         saveSettings();
@@ -867,7 +904,7 @@ const handleGlobalSubmit = (e) => {
         const oppInclude = JSON.parse(form.dataset.oppInclude || '[]');
         const oppExclude = JSON.parse(form.dataset.oppExclude || '[]');
         const newTagFilter = { my: { include: myInclude, exclude: myExclude }, opp: { include: oppInclude, exclude: oppExclude }};
-        const newView = { ...state.view, tagFilter: newTagFilter, currentPage: 1 };
+        const newView = { ...state.view, tagFilter: newTagFilter, matchHistoryCurrentPage: 1, resultHistoryCurrentPage: 1 };
         setView(newView);
         state.globalTagFilter = newTagFilter;
         saveSettings();
@@ -900,6 +937,7 @@ const handleGlobalKeyDown = (e) => {
         else if (!document.getElementById('add-result-modal').classList.contains('hidden')) closeAddResultModal();
         else if (!document.getElementById('delete-deck-confirm-modal').classList.contains('hidden')) closeDeleteDeckModal();
         else if (!document.getElementById('delete-match-confirm-modal').classList.contains('hidden')) closeDeleteMatchModal();
+        else if (!document.getElementById('delete-result-confirm-modal').classList.contains('hidden')) closeDeleteResultModal();
         else if (!document.getElementById('delete-tag-confirm-modal').classList.contains('hidden')) closeDeleteTagModal();
         else if (!document.getElementById('merge-tag-confirm-modal').classList.contains('hidden')) closeMergeTagModal();
         else if (!document.getElementById('deck-notes-modal').classList.contains('hidden')) closeNotesModal();

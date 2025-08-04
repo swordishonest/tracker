@@ -1,3 +1,4 @@
+
 // --- CONSTANTS ---
 export const CLASSES = ['Forest', 'Sword', 'Rune', 'Dragon', 'Abyss', 'Haven', 'Portal'];
 export const classStyles = {
@@ -44,6 +45,8 @@ export const translations = {
         'deleteDeckConfirm': 'Are you sure you want to delete the deck "{name}"? All associated match data will be permanently removed. This action cannot be undone.',
         'deleteMatchTitle': 'Delete Match',
         'deleteMatchConfirm': 'Are you sure you want to delete this match record? This action cannot be undone.',
+        'deleteResultTitle': 'Delete Result',
+        'deleteResultConfirm': 'Are you sure you want to delete this result record? This action cannot be undone.',
         'importTitle': 'Import Data',
         'importConfirm': 'How would you like to import this file? Merging adds new decks and matches to your existing data. Overwriting replaces all current data.',
         'resetTitle': 'Reset All Data',
@@ -66,6 +69,7 @@ export const translations = {
         'winsShort': 'W', 'lossesShort': 'L', 'gamesShort': 'G', 'na': 'N/A', 'games': 'Games',
         'opponentBreakdown': 'Opponent Breakdown', 'showAllClasses': '[Show All Classes]',
         'opponent': 'Opponent Class', 'playRate': 'Play Rate', 'matchHistory': 'Match History',
+        'resultHistory': 'Result History',
         'vs': '(vs {name})', 'wentTurn': 'Went {turn}', 'matchAriaDelete': 'Delete match', 'matchInfo': 'Match info',
         'noMatchesFilter': 'No matches found for this filter.',
         'barChartTitle': 'Win Rate vs Opponent', 'pieChartTitle': 'Opponent Play Rate', 'toggleChartType': 'Toggle chart type',
@@ -108,6 +112,8 @@ export const translations = {
         'deleteDeckConfirm': 'デッキ「{name}」を削除しますか？関連するすべての対戦データが完全に削除されます。この操作は元に戻せません。',
         'deleteMatchTitle': '対戦を削除',
         'deleteMatchConfirm': 'この対戦記録を削除しますか？この操作は元に戻せません。',
+        'deleteResultTitle': '結果を削除',
+        'deleteResultConfirm': 'この結果記録を削除しますか？この操作は元に戻せません。',
         'importTitle': 'データインポート',
         'importConfirm': 'このファイルをインポートする方法を選択してください。マージは既存のデータに新しいデッキと対戦を追加します。上書きは現在のすべてのデータを置き換えます。',
         'resetTitle': 'すべてのデータをリセット',
@@ -128,6 +134,7 @@ export const translations = {
         'winsShort': '勝', 'lossesShort': '敗', 'gamesShort': '戦', 'na': 'データなし', 'games': '対戦',
         'opponentBreakdown': 'クラス別内訳', 'showAllClasses': '[すべてのクラスを表示]',
         'opponent': '相手クラス', 'playRate': '使用率', 'matchHistory': '対戦履歴',
+        'resultHistory': '結果履歴',
         'vs': ' (vs {name})', 'wentTurn': '{turn}', 'matchAriaDelete': '対戦を削除', 'matchInfo': '対戦情報',
         'noMatchesFilter': 'このフィルターに一致する対戦はありません。',
         'barChartTitle': 'クラス別勝率', 'pieChartTitle': 'クラス別使用率', 'toggleChartType': 'グラフの種類を切り替え',
@@ -183,6 +190,7 @@ export let state = {
     tagToDeleteId: null,
     tagToMerge: null, // { sourceTag: obj, targetTag: obj }
     matchToDelete: null, // { deckId: '...', gameId: '...' }
+    runToDelete: null, // { deckId: '...', runId: '...' }
     matchInfoToShow: null, // { deckId: '...', gameId: '...' }
     fileToImport: null,
     deckNotesState: { deckId: null, isEditing: false },
@@ -239,6 +247,10 @@ export const setTagToMerge = (data) => {
 
 export const setMatchToDelete = (match) => {
     state.matchToDelete = match;
+};
+
+export const setRunToDelete = (run) => {
+    state.runToDelete = run;
 };
 
 export const setMatchInfoToShow = (match) => {

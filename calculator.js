@@ -1,10 +1,13 @@
 
+
 import { CLASSES, CLASS_NAMES, getTranslated } from './store.js';
 
 const cache = new Map();
 let lastDecksRef = null;
 let lastTagsRef = null;
 let lastModeRef = null;
+
+const ITEMS_PER_PAGE = 20;
 
 const createEmptyStats = () => ({
     total: 0,
@@ -83,7 +86,7 @@ export const getStatsForView = (view, decks, tags, t, language, mode) => {
         const targetClass = view.deckId.substring(4);
         const classDecks = decks.filter(d => d.class === targetClass);
         const allClassGames = classDecks.flatMap(d => d.games.map(g => ({...g, originalDeckId: d.id, originalDeckClass: d.class})));
-        const allClassRuns = mode === 'takeTwo' ? classDecks.flatMap(d => d.runs || []) : [];
+        const allClassRuns = mode === 'takeTwo' ? classDecks.flatMap(d => (d.runs || []).map(r => ({...r, originalDeckId: d.id, originalDeckClass: d.class}))) : [];
         const translatedClassName = getTranslated(CLASS_NAMES, targetClass);
         displayDeck = {
             id: view.deckId,
@@ -94,7 +97,7 @@ export const getStatsForView = (view, decks, tags, t, language, mode) => {
         };
     } else if (isAllDecksView) {
         const allGames = decks.flatMap(d => d.games.map(g => ({...g, originalDeckId: d.id, originalDeckClass: d.class})));
-        const allRuns = mode === 'takeTwo' ? decks.flatMap(d => d.runs || []) : [];
+        const allRuns = mode === 'takeTwo' ? decks.flatMap(d => (d.runs || []).map(r => ({...r, originalDeckId: d.id, originalDeckClass: d.class}))) : [];
         const name = mode === 'takeTwo' ? t('allClasses') : t('allDecks');
         displayDeck = { id: 'all', name, class: 'All', games: allGames, runs: allRuns };
     } else {
@@ -104,6 +107,7 @@ export const getStatsForView = (view, decks, tags, t, language, mode) => {
     if (!displayDeck) return null;
 
     let filteredDeckGames = displayDeck.games;
+    let filteredDeckRuns = displayDeck.runs || [];
     // Date Filter
     if (view.dateFilter && (view.dateFilter.start || view.dateFilter.end)) {
         const startDate = view.dateFilter.start ? new Date(view.dateFilter.start).setHours(0, 0, 0, 0) : null;
@@ -112,6 +116,12 @@ export const getStatsForView = (view, decks, tags, t, language, mode) => {
             const gameDate = game.timestamp;
             if (startDate && gameDate < startDate) return false;
             if (endDate && gameDate > endDate) return false;
+            return true;
+        });
+        filteredDeckRuns = filteredDeckRuns.filter(run => {
+            const runDate = run.timestamp;
+            if (startDate && runDate < startDate) return false;
+            if (endDate && runDate > endDate) return false;
             return true;
         });
     }
@@ -180,8 +190,8 @@ export const getStatsForView = (view, decks, tags, t, language, mode) => {
     // Take Two Specific Stats
     let averageWins = t('na');
     let winDistribution = Array(8).fill(0); // for 0 to 7 wins
-    if (mode === 'takeTwo' && displayDeck.runs && displayDeck.runs.length > 0) {
-        const runs = displayDeck.runs;
+    if (mode === 'takeTwo' && filteredDeckRuns && filteredDeckRuns.length > 0) {
+        const runs = filteredDeckRuns;
         const totalRuns = runs.length;
         if (totalRuns > 0) {
             const totalWins = runs.reduce((sum, run) => sum + run.wins, 0);
@@ -195,13 +205,34 @@ export const getStatsForView = (view, decks, tags, t, language, mode) => {
     }
 
     const sortedGames = [...filteredDeckGames].sort((a, b) => b.timestamp - a.timestamp);
+    const sortedRuns = [...filteredDeckRuns].sort((a, b) => b.timestamp - a.timestamp);
+
+    // --- Pagination ---
+    // Game Pagination
+    const matchHistoryCurrentPage = view.matchHistoryCurrentPage || 1;
+    const totalGames = sortedGames.length;
+    const totalGamePages = Math.ceil(totalGames / ITEMS_PER_PAGE) || 1;
+    const gameStartIndex = (matchHistoryCurrentPage - 1) * ITEMS_PER_PAGE;
+    const paginatedGames = sortedGames.slice(gameStartIndex, gameStartIndex + ITEMS_PER_PAGE);
+
+    // Run Pagination
+    const resultHistoryCurrentPage = view.resultHistoryCurrentPage || 1;
+    const totalRuns = sortedRuns.length;
+    const totalRunPages = Math.ceil(totalRuns / ITEMS_PER_PAGE) || 1;
+    const runStartIndex = (resultHistoryCurrentPage - 1) * ITEMS_PER_PAGE;
+    const paginatedRuns = sortedRuns.slice(runStartIndex, runStartIndex + ITEMS_PER_PAGE);
 
     const result = {
         displayDeck,
         stats,
         totalStatsForPie,
         winRateByClass,
-        sortedGames,
+        paginatedGames,
+        totalGames,
+        totalGamePages,
+        paginatedRuns,
+        totalRuns,
+        totalRunPages,
         filteredDeckGamesCount,
         averageWins,
         winDistribution,
