@@ -1,14 +1,27 @@
+/**
+ * @fileoverview This file is responsible for calculating all statistics displayed
+ * in the stats view. It includes logic for filtering data, calculating win rates,
+ * streaks, distributions, and preparing data for charts. It uses a caching mechanism
+ * to avoid re-computing stats unnecessarily.
+ */
 
 
-import { CLASSES, CLASS_NAMES, getTranslated } from './store.js';
+import { CLASSES, CLASS_NAMES, getTranslated } from '../store.js';
 
+// A cache to store results of expensive calculations.
 const cache = new Map();
+// References to check if the underlying data has changed, invalidating the cache.
 let lastDecksRef = null;
 let lastTagsRef = null;
 let lastModeRef = null;
 
+// The number of items to display per page in match/result history.
 const ITEMS_PER_PAGE = 20;
 
+/**
+ * Creates a baseline object for tracking statistics.
+ * @returns {object} An empty stats object.
+ */
 const createEmptyStats = () => ({
     total: 0,
     wins: 0,
@@ -22,8 +35,14 @@ const createEmptyStats = () => ({
     winLossByOpponent: CLASSES.reduce((acc, cls) => ({ ...acc, [cls]: { wins: 0, total: 0 } }), {}),
 });
 
+/**
+ * Calculates the longest winning streak from a list of games.
+ * @param {Array<object>} games An array of game objects.
+ * @returns {number} The longest winning streak.
+ */
 const calculateLongestStreak = (games) => {
     if (!games.length) return 0;
+    // Games must be sorted by timestamp to correctly calculate streaks.
     const sortedForStreak = [...games].sort((a, b) => a.timestamp - b.timestamp);
     let longestStreak = 0;
     let currentStreak = 0;
@@ -35,9 +54,15 @@ const calculateLongestStreak = (games) => {
             currentStreak = 0;
         }
     }
+    // Final check in case the streak continues to the end.
     return Math.max(longestStreak, currentStreak);
 };
 
+/**
+ * Processes an array of games to calculate aggregate statistics.
+ * @param {Array<object>} games The games to process.
+ * @returns {object} A populated stats object.
+ */
 const processGames = (games) => {
     const stats = createEmptyStats();
 
@@ -65,7 +90,20 @@ const processGames = (games) => {
     return stats;
 };
 
+/**
+ * The main function to get all calculated data for the statistics view.
+ * It handles filtering based on the view state and orchestrates all calculations.
+ * Results are cached to improve performance on re-renders with the same filters.
+ * @param {object} view The current view state object from the store.
+ * @param {Array<object>} decks The list of all decks.
+ * @param {Array<object>} tags The list of all tags.
+ * @param {function} t The translation function.
+ * @param {string} language The current language ('en' or 'ja').
+ * @param {string} mode The current mode ('normal' or 'takeTwo').
+ * @returns {object|null} An object containing all calculated data for the view, or null if the deck is not found.
+ */
 export const getStatsForView = (view, decks, tags, t, language, mode) => {
+    // Invalidate cache if the core data references have changed.
     if (lastDecksRef !== decks || lastTagsRef !== tags || lastModeRef !== mode) {
         cache.clear();
         lastDecksRef = decks;
@@ -82,6 +120,8 @@ export const getStatsForView = (view, decks, tags, t, language, mode) => {
     const isAllDecksView = view.deckId === 'all';
     let displayDeck;
 
+    // Determine which deck(s) to analyze based on the view's deckId.
+    // This can be a single deck, all decks of a class, or all decks combined.
     if (view.deckId && view.deckId.startsWith('all-')) {
         const targetClass = view.deckId.substring(4);
         const classDecks = decks.filter(d => d.class === targetClass);
@@ -108,7 +148,8 @@ export const getStatsForView = (view, decks, tags, t, language, mode) => {
 
     let filteredDeckGames = displayDeck.games;
     let filteredDeckRuns = displayDeck.runs || [];
-    // Date Filter
+    
+    // Apply Date Filter
     if (view.dateFilter && (view.dateFilter.start || view.dateFilter.end)) {
         const startDate = view.dateFilter.start ? new Date(view.dateFilter.start).setHours(0, 0, 0, 0) : null;
         const endDate = view.dateFilter.end ? new Date(view.dateFilter.end).setHours(23, 59, 59, 999) : null;
@@ -126,7 +167,7 @@ export const getStatsForView = (view, decks, tags, t, language, mode) => {
         });
     }
 
-    // Tag Filter
+    // Apply Tag Filter
     if (view.tagFilter) {
         const { my, opp } = view.tagFilter;
         if (my.include.length > 0 || my.exclude.length > 0 || opp.include.length > 0 || opp.exclude.length > 0) {
@@ -157,13 +198,15 @@ export const getStatsForView = (view, decks, tags, t, language, mode) => {
     }
 
     const filteredDeckGamesCount = filteredDeckGames.length;
+    // Calculate total stats before opponent filtering for the pie chart and class breakdown.
     const totalStatsForPie = processGames(filteredDeckGames);
 
-    // Opponent Class Filter
+    // Apply Opponent Class Filter for detailed stats.
     if (view.filterClass) {
         filteredDeckGames = filteredDeckGames.filter(g => g.opponentClass === view.filterClass);
     }
 
+    // Calculate the final stats for display.
     const calculatedStats = processGames(filteredDeckGames);
     calculatedStats.longestStreak = calculateLongestStreak(filteredDeckGames);
 
@@ -187,7 +230,7 @@ export const getStatsForView = (view, decks, tags, t, language, mode) => {
         return acc;
     }, {});
     
-    // Take Two Specific Stats
+    // Calculate Take Two Specific Stats
     let averageWins = t('na');
     let winDistribution = Array(8).fill(0); // for 0 to 7 wins
     if (mode === 'takeTwo' && filteredDeckRuns && filteredDeckRuns.length > 0) {
@@ -207,7 +250,7 @@ export const getStatsForView = (view, decks, tags, t, language, mode) => {
     const sortedGames = [...filteredDeckGames].sort((a, b) => b.timestamp - a.timestamp);
     const sortedRuns = [...filteredDeckRuns].sort((a, b) => b.timestamp - a.timestamp);
 
-    // --- Pagination ---
+    // --- Pagination Logic ---
     // Game Pagination
     const matchHistoryCurrentPage = view.matchHistoryCurrentPage || 1;
     const totalGames = sortedGames.length;
@@ -215,7 +258,7 @@ export const getStatsForView = (view, decks, tags, t, language, mode) => {
     const gameStartIndex = (matchHistoryCurrentPage - 1) * ITEMS_PER_PAGE;
     const paginatedGames = sortedGames.slice(gameStartIndex, gameStartIndex + ITEMS_PER_PAGE);
 
-    // Run Pagination
+    // Run Pagination (Take Two)
     const resultHistoryCurrentPage = view.resultHistoryCurrentPage || 1;
     const totalRuns = sortedRuns.length;
     const totalRunPages = Math.ceil(totalRuns / ITEMS_PER_PAGE) || 1;
@@ -237,7 +280,8 @@ export const getStatsForView = (view, decks, tags, t, language, mode) => {
         averageWins,
         winDistribution,
     };
-
+    
+    // Store the result in the cache before returning.
     cache.set(cacheKey, result);
     return result;
 };

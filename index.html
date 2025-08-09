@@ -4,12 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SVWB Win Tracker</title>
+    <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
             darkMode: 'class'
         }
     </script>
+    <!-- Custom CSS for animations -->
     <style>
         /* Modal animation styles */
         @keyframes fade-in-up {
@@ -30,6 +32,7 @@
             display: none;
         }
     </style>
+    <!-- Inline script to set the theme (dark/light) on initial load to prevent Flash of Unstyled Content (FOUC) -->
     <script>
         // On page load or when changing themes, best to add inline in `head` to avoid FOUC
         try {
@@ -50,11 +53,14 @@
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 transition-colors duration-300">
 
+    <!-- Main application container where views are dynamically rendered by JavaScript -->
     <div id="app" class="min-h-screen flex flex-col items-center p-4 sm:p-6 lg:p-8">
         <!-- Main content will be rendered here by JavaScript -->
     </div>
 
-    <!-- Add Deck Modal -->
+    <!-- MODALS: Hidden by default and shown by JavaScript. Each modal serves a specific purpose. -->
+
+    <!-- Add Deck Modal: For creating a new deck in Normal mode. -->
     <div id="add-deck-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4" aria-modal="true" role="dialog" aria-labelledby="add-deck-modal-title">
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md transform transition-all duration-300 scale-95 opacity-0 animate-fade-in-up">
              <form id="add-deck-form">
@@ -90,7 +96,7 @@
         </div>
     </div>
     
-    <!-- Add Result Modal -->
+    <!-- Add Result Modal: For adding a new Take Two run result. -->
     <div id="add-result-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4" aria-modal="true" role="dialog" aria-labelledby="add-result-modal-title">
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md transform transition-all duration-300 scale-95 opacity-0 animate-fade-in-up">
              <form id="add-result-form">
@@ -189,7 +195,7 @@
         </div>
     </div>
     
-    <!-- Delete Result Confirmation Modal -->
+    <!-- Delete Result Confirmation Modal (for Take Two runs) -->
     <div id="delete-result-confirm-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4" aria-modal="true" role="dialog" aria-labelledby="delete-result-modal-title">
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md transform transition-all duration-300 scale-95 opacity-0 animate-fade-in-up">
             <div class="p-6">
@@ -386,8 +392,10 @@
         </div>
     </div>
 
+    <!-- Hidden file input for importing data -->
     <input type="file" id="import-file-input" class="hidden" accept=".json" />
 
+    <!-- Main application script -->
     <script type="module" src="index.js"></script>
 <script type="module" src="/index.tsx"></script>
 </body>
