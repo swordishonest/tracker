@@ -67,8 +67,10 @@ export const translations = {
         'resetConfirm': 'Are you sure you want to reset all data? All decks, match history, tags, and Take Two records will be permanently deleted. This action cannot be undone.',
         'matchDetails': 'Match Details', 'recordedAt': 'Recorded at', 'noTagsForMatch': 'No tags were added to this match.',
         'addTakeTwoResultTitle': 'Add Take Two Result', 'saveResult': 'Save Result',
-        // Add Game
+        // Add/Edit Game
         'addGameTitle': 'Add Game for {name}',
+        'editMatchTitle': 'Edit Match',
+        'saveChanges': 'Save Changes',
         'opponentClass': "Opponent's Class", 'turn': 'Turn', 'result': 'Result',
         'saveGame': 'Save Game', 'gameSaved': 'Game Saved!',
         'tags': 'Tags', 'myTags': 'My Tags', 'opponentTags': "Opponent's Tags", 'addTagPlaceholder': 'Search or create tags...',
@@ -135,6 +137,8 @@ export const translations = {
         'matchDetails': '対戦の詳細', 'recordedAt': '記録日時', 'noTagsForMatch': 'この対戦にはタグが追加されていません。',
         'addTakeTwoResultTitle': '2Pickの結果を追加', 'saveResult': '結果を保存',
         'addGameTitle': '{name}の対戦を追加',
+        'editMatchTitle': '対戦を編集',
+        'saveChanges': '変更を保存',
         'opponentClass': '対戦相手のクラス', 'turn': '先行/後攻', 'result': '勝敗',
         'saveGame': '対戦を記録', 'gameSaved': '対戦を記録しました！',
         'tags': 'タグ', 'myTags': '自分のタグ', 'opponentTags': "相手のタグ", 'addTagPlaceholder': 'タグを検索または作成...',

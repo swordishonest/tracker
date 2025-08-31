@@ -6,7 +6,7 @@
  */
 
 import { state } from './store.js';
-import { renderDeckList, renderAddGameView, renderStatsView, renderManageTagsView } from './ui/views.js';
+import { renderDeckList, renderAddGameView, renderStatsView, renderManageTagsView, renderEditGameView } from './ui/views.js';
 import { renderModals } from './ui/modals.js';
 
 // --- THEME ---
@@ -45,6 +45,9 @@ export const render = () => {
             // Pass the render function to handle async re-renders within the view
             renderAddGameView(state.view.deckId, render);
             break;
+        case 'edit_game':
+            renderEditGameView(state.view.deckId, state.view.gameId, render);
+            break;
         case 'stats':
             renderStatsView(state.view.deckId);
             break;
@@ -62,4 +65,4 @@ export const render = () => {
 // This maintains a clean public API for this module.
 export * from './ui/modals.js';
 export { checkDeckFormValidity } from './ui/helpers.js';
-export { resetAddGameState, clearAddGameSelections } from './ui/views.js';
+export { resetAddGameState, clearAddGameSelections, resetEditGameState, renderEditGameView } from './ui/views.js';

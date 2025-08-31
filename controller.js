@@ -6,7 +6,7 @@
  */
 
 import { state, saveDecks, saveSettings, setView, setEditingDeckId, setDeckNotesState, setNewDeckClass, setDeckToDeleteId, setMatchToDelete, setRunToDelete, setFileToImport, CLASSES, saveTags, saveTagUsage, addTag, updateTagUsage, setAddGameTagsExpanded, setMatchInfoToShow, setTagToDeleteId, setTagToMerge, saveTakeTwoDecks, initializeTakeTwoDecks, setMode, setNewTakeTwoResult } from './store.js';
-import { render, openAddDeckModal, closeAddDeckModal, openDeleteDeckModal, closeDeleteDeckModal, openDeleteMatchModal, closeDeleteMatchModal, openDeleteResultModal, closeDeleteResultModal, openNotesModal, closeNotesModal, openImportModal, closeImportModal, openResetModal, closeResetModal, checkDeckFormValidity, setTheme, openTagFilterModal, closeTagFilterModal, openMatchInfoModal, closeMatchInfoModal, clearAddGameSelections, openDeleteTagModal, closeDeleteTagModal, openMergeTagModal, closeMergeTagModal, resetAddGameState, openAddResultModal, closeAddResultModal } from './view.js';
+import { render, openAddDeckModal, closeAddDeckModal, openDeleteDeckModal, closeDeleteDeckModal, openDeleteMatchModal, closeDeleteMatchModal, openDeleteResultModal, closeDeleteResultModal, openNotesModal, closeNotesModal, openImportModal, closeImportModal, openResetModal, closeResetModal, checkDeckFormValidity, setTheme, openTagFilterModal, closeTagFilterModal, openMatchInfoModal, closeMatchInfoModal, clearAddGameSelections, openDeleteTagModal, closeDeleteTagModal, openMergeTagModal, closeMergeTagModal, resetAddGameState, resetEditGameState, openAddResultModal, closeAddResultModal } from './view.js';
 import { exportData, importData } from './services/data-manager.js';
 
 /**
@@ -508,7 +508,7 @@ const actionHandlers = {
         }
     },
     'toggle-add-game-tags': () => {
-        if (state.view.type === 'add_game') {
+        if (state.view.type === 'add_game' || state.view.type === 'edit_game') {
             setAddGameTagsExpanded(!state.addGameTagsExpanded);
             render();
         }
@@ -574,6 +574,57 @@ const actionHandlers = {
             render();
         }
     },
+
+    // Match Edit Actions
+    'edit-match': ({ deckId, gameId }) => {
+        closeMatchInfoModal();
+        const fromStatsView = JSON.parse(JSON.stringify(state.view));
+        setView({
+            type: 'edit_game',
+            deckId,
+            gameId,
+            fromStatsView,
+        });
+        render();
+    },
+    'cancel-edit-game': () => {
+        const { fromStatsView } = state.view;
+        resetEditGameState();
+        setView(fromStatsView);
+        render();
+    },
+    'save-edited-game': () => {
+        const form = document.getElementById('edit-game-form');
+        if (!form) return;
+        const { deckId, gameId, fromStatsView } = state.view;
+
+        const opponentClass = form.dataset.opponentClass;
+        const turn = form.dataset.turn;
+        const result = form.dataset.result;
+        const myTagIds = JSON.parse(form.dataset.myTagIds || '[]');
+        const opponentTagIds = JSON.parse(form.dataset.opponentTagIds || '[]');
+
+        const deckListKey = state.mode === 'takeTwo' ? 'takeTwoDecks' : 'decks';
+        state[deckListKey] = state[deckListKey].map(deck => {
+            if (deck.id === deckId) {
+                const newGames = deck.games.map(game => {
+                    if (game.id === gameId) {
+                        return { ...game, opponentClass, turn, result, myTagIds, opponentTagIds };
+                    }
+                    return game;
+                });
+                return { ...deck, games: newGames };
+            }
+            return deck;
+        });
+
+        saveCurrentDecks();
+        updateTagUsage([...myTagIds, ...opponentTagIds]);
+        
+        resetEditGameState();
+        setView(fromStatsView);
+        render();
+    }
 };
 
 /**
@@ -739,6 +790,9 @@ const handleGlobalKeyDown = (e) => {
         else if (state.view.type === 'add_game' || state.view.type === 'stats' || state.view.type === 'manage_tags') {
             if (state.view.type === 'add_game') {
                 resetAddGameState();
+            }
+            if (state.view.type === 'edit_game') {
+                resetEditGameState();
             }
             setView({ type: 'list', editingDeckId: null });
             render();

@@ -7,6 +7,7 @@
 
 import { renderDeckList } from './views/deck-list.js';
 import { renderAddGameView, resetAddGameState, clearAddGameSelections } from './views/add-game.js';
+import { renderEditGameView, resetEditGameState } from './views/edit-game.js';
 import { renderStatsView } from './views/stats.js';
 import { renderManageTagsView } from './views/manage-tags.js';
 
@@ -16,6 +17,8 @@ export {
     renderAddGameView,
     resetAddGameState,
     clearAddGameSelections,
+    renderEditGameView,
+    resetEditGameState,
     renderStatsView,
     renderManageTagsView
 };

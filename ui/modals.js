@@ -693,6 +693,7 @@ export const renderModals = () => {
         if (deck) {
             const game = deck.games.find(g => g.id === gameId);
             if(game) {
+                document.getElementById('match-info-modal-title').textContent = t('matchDetails');
                 const tagsById = Object.fromEntries(state.tags.map(t => [t.id, t]));
                 const myTagPills = (game.myTagIds && game.myTagIds.length > 0) ? renderTagPills(game.myTagIds, tagsById).map(p => p.outerHTML).join('') : `<p class="text-xs italic text-gray-500 dark:text-gray-400">${t('noTagsForMatch')}</p>`;
                 const opponentTagPills = (game.opponentTagIds && game.opponentTagIds.length > 0) ? renderTagPills(game.opponentTagIds, tagsById).map(p => p.outerHTML).join('') : `<p class="text-xs italic text-gray-500 dark:text-gray-400">${t('noTagsForMatch')}</p>`;
@@ -711,6 +712,18 @@ export const renderModals = () => {
                         <div class="flex flex-wrap gap-2">${opponentTagPills}</div>
                     </div>
                 `;
+
+                const footerEl = document.getElementById('match-info-footer');
+                if (footerEl) {
+                    footerEl.innerHTML = `
+                        <button type="button" data-action="close-match-info-modal" class="inline-flex justify-center w-full sm:w-auto rounded-md border border-gray-300 dark:border-gray-500 shadow-sm px-4 py-2 bg-white dark:bg-gray-600 text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            ${t('close')}
+                        </button>
+                        <button type="button" data-action="edit-match" data-deck-id="${deckId}" data-game-id="${gameId}" class="inline-flex justify-center w-full sm:w-auto rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            ${t('edit')}
+                        </button>
+                    `;
+                }
             }
         }
     }
