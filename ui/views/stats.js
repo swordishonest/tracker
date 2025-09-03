@@ -55,7 +55,6 @@ export const renderStatsView = (deckId) => {
      */
     const renderPaginationControls = (currentPage, totalPages, totalItems, prevAction, nextAction, t) => {
         const ITEMS_PER_PAGE = 20;
-        if (totalPages <= 1) return '';
         const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
         const showingFrom = totalItems > 0 ? startIndex + 1 : 0;
         const showingTo = Math.min(startIndex + ITEMS_PER_PAGE, totalItems);
@@ -283,25 +282,36 @@ export const renderStatsView = (deckId) => {
     const isNormalMode = state.mode === 'normal';
     const allText = isNormalMode ? t('allDecks') : t('allClasses');
     
+    const chevronIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>`;
     // The right-hand column containing match/result history
     const secondColumnHTML = `
         <div>
-            ${(state.mode === 'takeTwo' && totalRuns > 0) ? `
+            ${(state.mode === 'takeTwo') ? `
                 <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md">
-                    <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4 px-6 pt-6">${t('resultHistory')}</h3>
-                    <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                        <ul id="recent-results-list" class="divide-y divide-gray-100 dark:divide-gray-700">${recentResultsHTML || `<li class="p-4 text-center text-gray-500 dark:text-gray-400">${t('noMatchesFilter')}</li>`}</ul>
+                    <button data-action="toggle-result-history" class="w-full flex justify-between items-center text-left text-lg font-semibold text-gray-700 dark:text-gray-200 px-6 py-5 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+                        <span>${t('resultHistory')}</span>
+                        <span class="transition-transform duration-200 ${state.resultHistoryCollapsed ? '' : 'rotate-180'}">${chevronIcon}</span>
+                    </button>
+                    <div class="${state.resultHistoryCollapsed ? 'hidden' : ''}">
+                        <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 mx-6 mb-3">
+                            <ul id="recent-results-list" class="divide-y divide-gray-100 dark:divide-gray-700">${recentResultsHTML || `<li class="p-4 text-center text-gray-500 dark:text-gray-400">${t('noMatchesFilter')}</li>`}</ul>
+                        </div>
+                        ${resultHistoryPaginationHTML}
                     </div>
-                    ${resultHistoryPaginationHTML}
                 </div>
             ` : ''}
 
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md ${(state.mode === 'takeTwo' && totalRuns > 0) ? 'mt-8' : ''}">
-                <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4 px-6 pt-6">${t('matchHistory')} ${filterClass ? t('vs', {name: getTranslatedClassName(filterClass)}): ''}</h3>
-                <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                    <ul id="recent-matches-list" class="divide-y divide-gray-100 dark:divide-gray-700">${recentMatchesHTML || `<li class="p-4 text-center text-gray-500 dark:text-gray-400">${t('noMatchesFilter')}</li>`}</ul>
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md ${(state.mode === 'takeTwo') ? 'mt-8' : ''}">
+                <button data-action="toggle-match-history" class="w-full flex justify-between items-center text-left text-lg font-semibold text-gray-700 dark:text-gray-200 px-6 py-5 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+                    <span>${t('matchHistory')} ${filterClass ? t('vs', {name: getTranslatedClassName(filterClass)}): ''}</span>
+                    <span class="transition-transform duration-200 ${state.matchHistoryCollapsed ? '' : 'rotate-180'}">${chevronIcon}</span>
+                </button>
+                <div class="${state.matchHistoryCollapsed ? 'hidden' : ''}">
+                     <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 mx-6 mb-3">
+                        <ul id="recent-matches-list" class="divide-y divide-gray-100 dark:divide-gray-700">${recentMatchesHTML || `<li class="p-4 text-center text-gray-500 dark:text-gray-400">${t('noMatchesFilter')}</li>`}</ul>
+                    </div>
+                    ${matchHistoryPaginationHTML}
                 </div>
-                ${matchHistoryPaginationHTML}
             </div>
         </div>
     `;

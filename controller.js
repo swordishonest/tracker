@@ -5,7 +5,7 @@
  * event listeners for the application.
  */
 
-import { state, saveDecks, saveSettings, setView, setEditingDeckId, setDeckNotesState, setNewDeckClass, setDeckToDeleteId, setMatchToDelete, setRunToDelete, setFileToImport, CLASSES, saveTags, saveTagUsage, addTag, updateTagUsage, setAddGameTagsExpanded, setMatchInfoToShow, setTagToDeleteId, setTagToMerge, saveTakeTwoDecks, initializeTakeTwoDecks, setMode, setNewTakeTwoResult } from './store.js';
+import { state, saveDecks, saveSettings, setView, setEditingDeckId, setDeckNotesState, setNewDeckClass, setDeckToDeleteId, setMatchToDelete, setRunToDelete, setFileToImport, CLASSES, saveTags, saveTagUsage, addTag, updateTagUsage, setAddGameTagsExpanded, setMatchInfoToShow, setTagToDeleteId, setTagToMerge, saveTakeTwoDecks, initializeTakeTwoDecks, setMode, setNewTakeTwoResult, setMatchHistoryCollapsed, setResultHistoryCollapsed } from './store.js';
 import { render, openAddDeckModal, closeAddDeckModal, openDeleteDeckModal, closeDeleteDeckModal, openDeleteMatchModal, closeDeleteMatchModal, openDeleteResultModal, closeDeleteResultModal, openNotesModal, closeNotesModal, openImportModal, closeImportModal, openResetModal, closeResetModal, checkDeckFormValidity, setTheme, openTagFilterModal, closeTagFilterModal, openMatchInfoModal, closeMatchInfoModal, clearAddGameSelections, openDeleteTagModal, closeDeleteTagModal, openMergeTagModal, closeMergeTagModal, resetAddGameState, resetEditGameState, openAddResultModal, closeAddResultModal } from './view.js';
 import { exportData, importData } from './services/data-manager.js';
 
@@ -550,6 +550,14 @@ const actionHandlers = {
             setView({ ...state.view, resultHistoryCurrentPage: (state.view.resultHistoryCurrentPage || 1) + 1 });
             render();
         }
+    },
+    'toggle-match-history': () => {
+        setMatchHistoryCollapsed(!state.matchHistoryCollapsed);
+        render();
+    },
+    'toggle-result-history': () => {
+        setResultHistoryCollapsed(!state.resultHistoryCollapsed);
+        render();
     },
 
     // Tag Management Actions

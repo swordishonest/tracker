@@ -31,6 +31,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (settings.addGameTagsExpanded) {
         state.addGameTagsExpanded = settings.addGameTagsExpanded;
     }
+    if (typeof settings.matchHistoryCollapsed === 'boolean') {
+        state.matchHistoryCollapsed = settings.matchHistoryCollapsed;
+    }
+    if (typeof settings.resultHistoryCollapsed === 'boolean') {
+        state.resultHistoryCollapsed = settings.resultHistoryCollapsed;
+    }
     if (settings.globalDateFilter) {
         state.globalDateFilter = settings.globalDateFilter;
     }

@@ -87,7 +87,7 @@ export const translations = {
         'opponent': 'Opponent Class', 'playRate': 'Play Rate', 'matchHistory': 'Match History',
         'resultHistory': 'Result History',
         'vs': '(vs {name})', 'wentTurn': 'Went {turn}', 'matchAriaDelete': 'Delete match', 'matchInfo': 'Match info',
-        'noMatchesFilter': 'No matches found for this filter.',
+        'noMatchesFilter': 'No data found.',
         'barChartTitle': 'Win Rate vs Opponent', 'pieChartTitle': 'Opponent Play Rate', 'toggleChartType': 'Toggle chart type',
         'averageWins': 'Average Wins', 'winsHistogramTitle': 'Wins Distribution',
         'paginationResults': 'Showing <span class="font-medium">{from}</span> to <span class="font-medium">{to}</span> of <span class="font-medium">{total}</span> results',
@@ -154,7 +154,7 @@ export const translations = {
         'opponent': '相手クラス', 'playRate': '使用率', 'matchHistory': '対戦履歴',
         'resultHistory': '結果履歴',
         'vs': ' (vs {name})', 'wentTurn': '{turn}', 'matchAriaDelete': '対戦を削除', 'matchInfo': '対戦情報',
-        'noMatchesFilter': 'このフィルターに一致する対戦はありません。',
+        'noMatchesFilter': 'データが見つかりません。',
         'barChartTitle': 'クラス別勝率', 'pieChartTitle': 'クラス別使用率', 'toggleChartType': 'グラフの種類を切り替え',
         'averageWins': '平均勝利数', 'winsHistogramTitle': '勝利数分布',
         'paginationResults': '全<span class="font-medium">{total}</span>件中 <span class="font-medium">{from}</span>〜<span class="font-medium">{to}</span>件を表示',
@@ -207,6 +207,8 @@ export const RESULT_NAMES = {
  * @property {object} globalDateFilter - The date filter settings applied across the app.
  * @property {object} globalTagFilter - The tag filter settings applied across the app.
  * @property {boolean} addGameTagsExpanded - Whether the tag section in the Add Game view is expanded.
+ * @property {boolean} matchHistoryCollapsed - Whether the match history list in stats is collapsed.
+ * @property {boolean} resultHistoryCollapsed - Whether the result history list in stats is collapsed.
  * @property {string|null} newDeckClass - The class selected when creating a new deck.
  * @property {object} newTakeTwoResult - The state for the "Add Result" modal form.
  * @property {string|null} deckToDeleteId - The ID of the deck currently staged for deletion.
@@ -231,6 +233,8 @@ export let state = {
     globalDateFilter: { start: null, end: null },
     globalTagFilter: { my: { include: [], exclude: [] }, opp: { include: [], exclude: [] } },
     addGameTagsExpanded: false,
+    matchHistoryCollapsed: false,
+    resultHistoryCollapsed: false,
     newDeckClass: null,
     newTakeTwoResult: { class: null, wins: null, losses: null },
     deckToDeleteId: null,
@@ -295,6 +299,24 @@ export const setEditingDeckId = (id) => {
  */
 export const setAddGameTagsExpanded = (isExpanded) => {
     state.addGameTagsExpanded = isExpanded;
+    saveSettings();
+};
+
+/**
+ * Sets whether the match history list in the stats view is collapsed.
+ * @param {boolean} isCollapsed True if collapsed, false otherwise.
+ */
+export const setMatchHistoryCollapsed = (isCollapsed) => {
+    state.matchHistoryCollapsed = isCollapsed;
+    saveSettings();
+};
+
+/**
+ * Sets whether the result history list in the stats view is collapsed.
+ * @param {boolean} isCollapsed True if collapsed, false otherwise.
+ */
+export const setResultHistoryCollapsed = (isCollapsed) => {
+    state.resultHistoryCollapsed = isCollapsed;
     saveSettings();
 };
 
@@ -560,6 +582,8 @@ export const saveSettings = () => {
             addGameTagsExpanded: state.addGameTagsExpanded,
             globalDateFilter: state.globalDateFilter,
             globalTagFilter: state.globalTagFilter,
+            matchHistoryCollapsed: state.matchHistoryCollapsed,
+            resultHistoryCollapsed: state.resultHistoryCollapsed,
         };
         localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(settings));
     } catch (error) {

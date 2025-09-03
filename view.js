@@ -6,7 +6,7 @@
  */
 
 import { state } from './store.js';
-import { renderDeckList, renderAddGameView, renderStatsView, renderManageTagsView, renderEditGameView } from './ui/views.js';
+import { renderDeckList, renderAddGameView, renderStatsView, renderManageTagsView, renderEditGameView } from './ui/views/views.js';
 import { renderModals } from './ui/modals.js';
 
 // --- THEME ---
@@ -65,4 +65,4 @@ export const render = () => {
 // This maintains a clean public API for this module.
 export * from './ui/modals.js';
 export { checkDeckFormValidity } from './ui/helpers.js';
-export { resetAddGameState, clearAddGameSelections, resetEditGameState, renderEditGameView } from './ui/views.js';
+export { resetAddGameState, clearAddGameSelections, resetEditGameState, renderEditGameView } from './ui/views/views.js';
